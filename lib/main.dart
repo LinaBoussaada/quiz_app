@@ -1,13 +1,12 @@
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/createQuizScreen.dart';
 import 'package:quiz_app/homeScreen.dart';
-import 'firebase_options.dart'; // Assure-toi d'importer ce fichier
+import 'firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform, // Ajout de cette ligne
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
   runApp(MyApp());
@@ -20,8 +19,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Quiz Creator',
       theme: ThemeData(primarySwatch: Colors.blue),
-      //home: CreateQuizScreen(),
-      home: HomeScreen(),
+      home: const HomeScreen(),
     );
   }
 }
