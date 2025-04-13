@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:quiz_app/createQuizScreen.dart';
 import 'package:quiz_app/homeScreen.dart';
 import 'package:quiz_app/loginScreen.dart';
 
@@ -33,7 +34,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
       // Redirect to HomeScreen after signup
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (context) => HomeScreen()),
+        MaterialPageRoute(builder: (context) => CreateQuizScreen()),
       );
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(

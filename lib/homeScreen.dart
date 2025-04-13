@@ -16,6 +16,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Check if user is logged in
+    final user = FirebaseAuth.instance.currentUser;
+    final bool isLoggedIn = user != null;
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: PreferredSize(
@@ -49,56 +53,61 @@ class _HomeScreenState extends State<HomeScreen> {
                 _NavItem(text: "Pricing"),
                 _NavItem(text: "Talk to sales"),
                 const SizedBox(width: 10),
-                TextButton(
-                  onPressed: () {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) {
+                
+                // Show different buttons based on login status
+                if (isLoggedIn)
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF4F46E5),
+                      shape: const StadiumBorder(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => CreateQuizScreen()),
+                      );
+                    },
+                    child: const Text(
+                      "Go To Home",
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  )
+                else
+                  Row(
+                    children: [
+                      TextButton(
+                        onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (context) =>  LoginScreen()),
+                            MaterialPageRoute(builder: (context) => LoginScreen()),
                           );
-                        } else {
+                        },
+                        child: const Text(
+                          "Log in",
+                          style: TextStyle(color: Colors.black),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF4F46E5),
+                          shape: const StadiumBorder(),
+                          padding: const EdgeInsets.symmetric(horizontal: 20),
+                        ),
+                        onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (context) => CreateQuizScreen()),
+                            MaterialPageRoute(builder: (context) => LoginScreen()),
                           );
-                        }
-                      },
-                  child: const Text(
-                    "Log in",
-                    style: TextStyle(color: Colors.black),
+                        },
+                        child: const Text(
+                          "Sign up",
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF4F46E5),
-                    shape: const StadiumBorder(),
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                  ),
-                   onPressed: () {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) =>  LoginScreen()),
-                          );
-                        } else {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                                builder: (context) => CreateQuizScreen()),
-                          );
-                        }
-                      },
-                  child: const Text(
-                    "Sign up",
-                    style: TextStyle(color: Colors.white),
-                  ),
-                ),
               ],
             ),
           ),
@@ -144,12 +153,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     onPressed: () {
-                // 🔹 Joindre un quiz sans connexionr
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (context) => JoinQuizScreen()),
-                );
-              },
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (context) => JoinQuizScreen()),
+                      );
+                    },
                     child: const Text("Join"),
                   ),
                   const Spacer(),
@@ -201,24 +209,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         shape: const StadiumBorder(),
                       ),
                       onPressed: () {
-                        final user = FirebaseAuth.instance.currentUser;
-                        if (user == null) {
+                        if (isLoggedIn) {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (context) =>  LoginScreen()),
+                            MaterialPageRoute(builder: (context) => CreateQuizScreen()),
                           );
                         } else {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(
-                                builder: (context) => CreateQuizScreen()),
+                            MaterialPageRoute(builder: (context) => LoginScreen()),
                           );
                         }
                       },
-                      child: const Text(
-                        "Get started, it's free",
-                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      child: Text(
+                        isLoggedIn ? "Go to my presentation" : "Get started, it's free",
+                        style: const TextStyle(fontSize: 16, color: Colors.white),
                       ),
                     ),
                     const SizedBox(height: 10),
