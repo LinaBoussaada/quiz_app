@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class QuizCreatedScreen extends StatelessWidget {
   final String quizId;
-
+ 
   const QuizCreatedScreen({Key? key, required this.quizId}) : super(key: key);
 
   @override

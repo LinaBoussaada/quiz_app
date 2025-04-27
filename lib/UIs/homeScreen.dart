@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/JoinQuizScreen.dart';
-import 'package:quiz_app/createQuizScreen.dart';
-import 'package:quiz_app/loginScreen.dart';
+import 'package:quiz_app/UIs/JoinQuizScreen.dart';
+import 'package:quiz_app/UIs/QuizScreen.dart';
+import 'package:quiz_app/UIs/loginScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});

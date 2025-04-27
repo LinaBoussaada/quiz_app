@@ -1,6 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/QuizScreen.dart';
+import 'package:quiz_app/UIs/QuizScreen.dart' show CreateQuizScreen;
 
 class JoinQuizScreen extends StatefulWidget {
   @override
@@ -12,7 +12,7 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
   final TextEditingController _playerNameController = TextEditingController();
 
   final databaseRef =
-      FirebaseDatabase.instance.ref(); // Référence à la Realtime Database
+      FirebaseDatabase.instance.ref();
 
   Future<void> _joinQuiz() async {
     String quizId = _quizCodeController.text.trim();
@@ -30,7 +30,7 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
     }
 
     try {
-      // Vérifier si le quiz existe dans la Realtime Database
+     
       DataSnapshot snapshot =
           await databaseRef.child('quizzes').child(quizId).get();
 
@@ -46,7 +46,7 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
         // Naviguer vers l'écran du quiz
         Navigator.push(
           context,
-          MaterialPageRoute(builder: (context) => QuizScreen(quizId: quizId)),
+          MaterialPageRoute(builder: (context) => CreateQuizScreen()),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
