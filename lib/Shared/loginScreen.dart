@@ -1,8 +1,7 @@
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/createQuizScreen.dart';
-import 'package:quiz_app/sign_up_screen.dart';
+import 'package:quiz_app/Creator/createQuizScreen.dart';
+import 'package:quiz_app/Shared/sign_up_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   @override
@@ -105,7 +104,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ],
               ),
               SizedBox(height: 40),
-              
+
               // Welcome text
               Text(
                 "Welcome back!",
@@ -116,7 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               SizedBox(height: 40),
-              
+
               // Login Form
               Container(
                 width: 400,
@@ -137,11 +136,13 @@ class _LoginScreenState extends State<LoginScreen> {
                       textAlign: TextAlign.center,
                     ),
                     SizedBox(height: 20),
-                    
+
                     // Social Login Buttons
                     OutlinedButton.icon(
                       onPressed: () => _loginWithSocial("Google"),
-                      icon: Image.asset('assets/images/google.png', height: 24) ?? Icon(Icons.g_mobiledata),
+                      icon:
+                          Image.asset('assets/images/google.png', height: 24) ??
+                              Icon(Icons.g_mobiledata),
                       label: Text("Log in with Google"),
                       style: OutlinedButton.styleFrom(
                         minimumSize: Size(double.infinity, 48),
@@ -152,12 +153,12 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 12),
-                    
-              
-                    
+
                     OutlinedButton.icon(
                       onPressed: () => _loginWithSocial("Facebook"),
-                      icon: Image.asset('assets/images/facebook.png', height: 24) ?? Icon(Icons.facebook),
+                      icon: Image.asset('assets/images/facebook.png',
+                              height: 24) ??
+                          Icon(Icons.facebook),
                       label: Text("Log in with Facebook"),
                       style: OutlinedButton.styleFrom(
                         minimumSize: Size(double.infinity, 48),
@@ -168,20 +169,21 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 20),
-                    
+
                     // Divider with text
                     Row(
                       children: [
                         Expanded(child: Divider()),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text("or using email", style: TextStyle(color: Colors.grey)),
+                          child: Text("or using email",
+                              style: TextStyle(color: Colors.grey)),
                         ),
                         Expanded(child: Divider()),
                       ],
                     ),
                     SizedBox(height: 20),
-                    
+
                     // Email field
                     Text("Work email"),
                     SizedBox(height: 8),
@@ -195,11 +197,12 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(4),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                       ),
                     ),
                     SizedBox(height: 16),
-                    
+
                     // Password field
                     Text("Your password"),
                     SizedBox(height: 8),
@@ -213,10 +216,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           borderRadius: BorderRadius.circular(4),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                            _obscurePassword
+                                ? Icons.visibility
+                                : Icons.visibility_off,
                             color: Colors.grey,
                           ),
                           onPressed: () {
@@ -228,16 +234,16 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 24),
-                    
+
                     // Login button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _login,
-                      child: _isLoading 
+                      child: _isLoading
                           ? SizedBox(
-                              height: 20, 
-                              width: 20, 
-                              child: CircularProgressIndicator(color: Colors.white)
-                            )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white))
                           : Text("Log in"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
@@ -249,7 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    
+
                     // Bottom links
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -278,7 +284,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               SizedBox(height: 20),
-              
+
               // New to Mentimeter
               Text(
                 "New to Mentimeter?",

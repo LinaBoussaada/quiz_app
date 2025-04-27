@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/JoinQuizScreen.dart';
-import 'package:quiz_app/createQuizScreen.dart';
-import 'package:quiz_app/loginScreen.dart';
+import 'package:quiz_app/Player/JoinQuizScreen.dart';
+import 'package:quiz_app/Creator/createQuizScreen.dart';
+import 'package:quiz_app/Shared/loginScreen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -53,7 +53,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 _NavItem(text: "Pricing"),
                 _NavItem(text: "Talk to sales"),
                 const SizedBox(width: 10),
-                
+
                 // Show different buttons based on login status
                 if (isLoggedIn)
                   ElevatedButton(
@@ -65,7 +65,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => CreateQuizScreen()),
+                        MaterialPageRoute(
+                            builder: (context) => CreateQuizScreen()),
                       );
                     },
                     child: const Text(
@@ -80,7 +81,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => LoginScreen()),
+                            MaterialPageRoute(
+                                builder: (context) => LoginScreen()),
                           );
                         },
                         child: const Text(
@@ -98,7 +100,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         onPressed: () {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => LoginScreen()),
+                            MaterialPageRoute(
+                                builder: (context) => LoginScreen()),
                           );
                         },
                         child: const Text(
@@ -155,7 +158,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => JoinQuizScreen()),
+                        MaterialPageRoute(
+                            builder: (context) => JoinQuizScreen()),
                       );
                     },
                     child: const Text("Join"),
@@ -212,18 +216,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         if (isLoggedIn) {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => CreateQuizScreen()),
+                            MaterialPageRoute(
+                                builder: (context) => CreateQuizScreen()),
                           );
                         } else {
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (context) => LoginScreen()),
+                            MaterialPageRoute(
+                                builder: (context) => LoginScreen()),
                           );
                         }
                       },
                       child: Text(
-                        isLoggedIn ? "Go to my presentation" : "Get started, it's free",
-                        style: const TextStyle(fontSize: 16, color: Colors.white),
+                        isLoggedIn
+                            ? "Go to my presentation"
+                            : "Get started, it's free",
+                        style:
+                            const TextStyle(fontSize: 16, color: Colors.white),
                       ),
                     ),
                     const SizedBox(height: 10),
