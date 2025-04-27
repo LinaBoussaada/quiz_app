@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:quiz_app/Player/JoinQuizScreen.dart';
+import 'package:quiz_app/Player/QuizScreen.dart';
 import 'package:quiz_app/Creator/createQuizScreen.dart';
 import 'package:quiz_app/Shared/loginScreen.dart';
 
@@ -13,6 +15,65 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   bool showJoinBar = true;
+  final TextEditingController _quizCodeController = TextEditingController();
+  bool _isVerifying = false;
+  final databaseRef = FirebaseDatabase.instance.ref();
+
+  Future<void> _verifyAndJoinQuiz() async {
+    final quizCode = _quizCodeController.text.trim();
+    
+    if (quizCode.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Please enter a quiz code"),
+          backgroundColor: Colors.red,
+        )
+      );
+      return;
+    }
+    
+    setState(() {
+      _isVerifying = true;
+    });
+    
+    try {
+      // Verify if quiz exists
+      DataSnapshot snapshot = await databaseRef.child('quizzes').child(quizCode).get();
+      
+      setState(() {
+        _isVerifying = false;
+      });
+      
+      if (snapshot.exists) {
+        // Quiz exists, navigate to JoinQuizScreen with the code
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => JoinQuizScreen(initialQuizCode: quizCode),
+          ),
+        );
+      } else {
+        // Quiz does not exist
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text("Invalid quiz code. Please check and try again."),
+            backgroundColor: Colors.red,
+          )
+        );
+      }
+    } catch (e) {
+      setState(() {
+        _isVerifying = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text("Error verifying quiz: $e"),
+          backgroundColor: Colors.red,
+        )
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -133,6 +194,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     width: 120,
                     height: 35,
                     child: TextField(
+                      controller: _quizCodeController,
                       decoration: InputDecoration(
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 10),
@@ -143,27 +205,33 @@ class _HomeScreenState extends State<HomeScreen> {
                         filled: true,
                         fillColor: Colors.white,
                       ),
+                      keyboardType: TextInputType.number,
                     ),
                   ),
                   const SizedBox(width: 10),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.grey[300],
-                      foregroundColor: Colors.black,
-                      padding: const EdgeInsets.symmetric(horizontal: 18),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (context) => JoinQuizScreen()),
-                      );
-                    },
-                    child: const Text("Join"),
-                  ),
+                  _isVerifying
+                      ? SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(
+                              Theme.of(context).primaryColor,
+                            ),
+                          ),
+                        )
+                      : ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.grey[300],
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 18),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                          ),
+                          onPressed: _verifyAndJoinQuiz,
+                          child: const Text("Join"),
+                        ),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close),
@@ -248,6 +316,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     );
+  }
+  
+  @override
+  void dispose() {
+    _quizCodeController.dispose();
+    super.dispose();
   }
 }
 

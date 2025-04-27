@@ -1,5 +1,6 @@
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 
 class QuizAdminDashboard extends StatefulWidget {
@@ -22,6 +23,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
   bool _timeExpired = false;
   bool _quizFinished = false;
   DateTime? _questionStartTime;
+  String _quizTitle = "";
 
   @override
   void initState() {
@@ -43,10 +45,10 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       final data = snapshot.value as Map<dynamic, dynamic>;
       setState(() {
         _questions = List<dynamic>.from(data['questions'] ?? []);
-        _currentQuestionIndex =
-            (data['currentQuestionIndex'] as num?)?.toInt() ?? 0;
+        _currentQuestionIndex = (data['currentQuestionIndex'] as num?)?.toInt() ?? 0;
         _quizActive = data['isActive'] ?? false;
         _remainingTime = _getCurrentQuestionTime();
+        _quizTitle = data['title'] ?? "Quiz sans titre";
 
         if (_quizActive) {
           _startQuestionTimer();
@@ -72,6 +74,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
           _players = Map<String, dynamic>.from(data['players'] ?? {});
           _quizActive = data['isActive'] ?? false;
           _questions = List<dynamic>.from(data['questions'] ?? []);
+          _quizTitle = data['title'] ?? "Quiz sans titre";
 
           if (newIndex != _currentQuestionIndex) {
             _currentQuestionIndex = newIndex;
@@ -121,7 +124,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
     await _quizRef.update({
       'isActive': true,
       'currentQuestionIndex': 0,
-      'players': {},
+      'players': {}, // Réinitialise la liste des joueurs au démarrage du quiz
     });
     _startQuestionTimer();
   }
@@ -140,12 +143,27 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
 
   Future<void> _endQuiz() async {
     _questionTimer?.cancel();
+    
+    // Ne pas sauvegarder l'historique
+    
     await _quizRef.update({
       'isActive': false,
     });
+    
     setState(() {
       _quizFinished = true;
     });
+  }
+
+  void _copyQuizIdToClipboard() {
+    Clipboard.setData(ClipboardData(text: widget.quizId));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Code du quiz copié dans le presse-papiers'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   @override
@@ -157,9 +175,10 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
               onPressed: _quizActive ? null : _startQuiz,
               child: const Icon(Icons.play_arrow),
               tooltip: 'Démarrer le quiz',
+              backgroundColor: _quizActive ? Colors.grey : Colors.green,
             ),
       appBar: AppBar(
-        title: const Text("Tableau de contrôle"),
+        title: Text("Quiz Admin: $_quizTitle"),
         actions: [
           if (_quizActive && !_quizFinished)
             IconButton(
@@ -171,7 +190,60 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       ),
       body: Column(
         children: [
+          // Section Code du Quiz
           Card(
+            margin: EdgeInsets.all(16),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Icon(Icons.qr_code, size: 36, color: Colors.deepPurple),
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          "Code du Quiz",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          widget.quizId,
+                          style: TextStyle(
+                            fontSize: 24,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.deepPurple,
+                            letterSpacing: 2,
+                          ),
+                        ),
+                        Text(
+                          "Les participants peuvent rejoindre avec ce code",
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.copy),
+                    onPressed: _copyQuizIdToClipboard,
+                    tooltip: "Copier le code",
+                    color: Colors.blue,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          
+          // Section État du Quiz
+          Card(
+            margin: EdgeInsets.symmetric(horizontal: 16),
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
@@ -230,50 +302,87 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
               ),
             ),
           ),
+          
+          // Section Participants (uniquement les participants actuels)
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Padding(
-                  padding: EdgeInsets.all(16),
+                Padding(
+                  padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
                   child: Text(
-                    'Participants',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    "Participants actuels (${_players.length})",
+                    style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Colors.deepPurple,
+                    ),
                   ),
                 ),
                 Expanded(
                   child: _players.isEmpty
-                      ? const Center(child: Text("Aucun participant"))
-                      : ListView.builder(
-                          itemCount: _players.length,
-                          itemBuilder: (context, index) {
-                            final playerId = _players.keys.elementAt(index);
-                            final player = _players[playerId];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                child: Text((index + 1).toString()),
-                              ),
-                              title: Text(player['name'] ?? 'Anonyme'),
-                              subtitle: Text('Score: ${player['score'] ?? 0}'),
-                              trailing: _quizActive && _questions.isNotEmpty
-                                  ? Icon(
-                                      player['isCorrect'] == true
-                                          ? Icons.check_circle
-                                          : Icons.circle_outlined,
-                                      color: player['isCorrect'] == true
-                                          ? Colors.green
-                                          : Colors.grey,
-                                    )
-                                  : null,
-                            );
-                          },
+                    ? Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.people_outline, size: 48, color: Colors.grey.shade400),
+                            SizedBox(height: 16),
+                            Text(
+                              "Aucun participant",
+                              style: TextStyle(color: Colors.grey.shade600),
+                            ),
+                            SizedBox(height: 8),
+                            Text(
+                              "Partagez le code du quiz pour que les joueurs puissent rejoindre",
+                              textAlign: TextAlign.center,
+                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                            ),
+                          ],
                         ),
+                      )
+                    : _buildParticipantsList(_players),
                 ),
               ],
             ),
           ),
         ],
       ),
+    );
+  }
+  
+  Widget _buildParticipantsList(Map<String, dynamic> participants) {
+    return ListView.builder(
+      padding: EdgeInsets.all(8),
+      itemCount: participants.length,
+      itemBuilder: (context, index) {
+        final entry = participants.entries.elementAt(index);
+        final playerId = entry.key;
+        final player = entry.value;
+        
+        return Card(
+          margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          child: ListTile(
+            leading: CircleAvatar(
+              backgroundColor: Colors.deepPurple,
+            ),
+            title: Text(
+              player['name'] ?? 'Anonyme',
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text('Score: ${player['score'] ?? 0}'),
+            trailing: _quizActive
+                ? Icon(
+                    player['isCorrect'] == true
+                        ? Icons.check_circle
+                        : Icons.circle_outlined,
+                    color: player['isCorrect'] == true
+                        ? Colors.green
+                        : Colors.grey,
+                  )
+                : null,
+          ),
+        );
+      },
     );
   }
 }

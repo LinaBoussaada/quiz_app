@@ -20,7 +20,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
   void initState() {
     super.initState();
     _quizRef = FirebaseDatabase.instance
-        .ref('quizzes/${widget.quizId}'); // ✅ Correct initialization
+        .ref('quizzes/${widget.quizId}'); 
     _setupQuizListener();
   }
 
@@ -61,7 +61,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
             ),
             const SizedBox(height: 30),
             Text(
-              'Quiz ID: ${widget.quizId}', // ✅ Safe to use `widget` here
+              'Quiz ID: ${widget.quizId}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
           ],

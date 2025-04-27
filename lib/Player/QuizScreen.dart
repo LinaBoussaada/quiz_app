@@ -6,11 +6,15 @@ class QuizScreen extends StatefulWidget {
   final String quizId;
   final bool isHost;
   final String? playerName;
+  final String? playerAvatar;
+  final String? playerId;
 
   const QuizScreen({
     required this.quizId,
     this.isHost = false,
     this.playerName,
+    this.playerAvatar,
+    this.playerId,
     Key? key,
   }) : super(key: key);
 
@@ -29,12 +33,17 @@ class _QuizScreenState extends State<QuizScreen> {
   bool _isAnswered = false;
   bool _quizFinished = false;
   int _finalScore = 0;
+  String? _currentPlayerId;
   StreamSubscription? _quizStateSubscription;
+  List<Map<String, dynamic>> _topPlayers = [];
+  bool _isLoading = true;
+  String? _errorMessage;
 
   @override
   void initState() {
     super.initState();
     _quizFinished = false;
+    _currentPlayerId = widget.playerId;
     _loadQuizData();
     _setupRealTimeUpdates();
   }
@@ -48,8 +57,15 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Future<void> _loadQuizData() async {
     try {
+      setState(() {
+        _isLoading = true;
+        _errorMessage = null;
+      });
+      
       DataSnapshot snapshot =
           await databaseRef.child('quizzes').child(widget.quizId).get();
+
+      if (!mounted) return;
 
       if (snapshot.exists) {
         Map<String, dynamic> quizData =
@@ -57,15 +73,33 @@ class _QuizScreenState extends State<QuizScreen> {
 
         setState(() {
           _questions = List<Map<String, dynamic>>.from(
-            (quizData['questions'] as List)
+            (quizData['questions'] as List? ?? [])
                 .map((q) => (q as Map).cast<String, dynamic>()),
           );
-          _playerData = (quizData['players'] as Map<Object?, Object?>)
-              .cast<String, dynamic>();
+          
+          if (quizData.containsKey('players') && quizData['players'] != null) {
+            _playerData = (quizData['players'] as Map<Object?, Object?>)
+                .cast<String, dynamic>();
+          } else {
+            _playerData = {};
+          }
+          
+          // If we're not the host and we have an ID, focus on our player data
+          if (!widget.isHost && _currentPlayerId != null) {
+            // Make sure this player is in the database
+            if (!_playerData.containsKey(_currentPlayerId)) {
+              _addPlayerToDatabase();
+            }
+          }
+          
           _currentQuestionIndex = quizData['currentQuestionIndex'] ?? 0;
           _quizActive = quizData['isActive'] ?? false;
           _quizFinished =
               !_quizActive && _currentQuestionIndex >= _questions.length - 1;
+              
+          // Update top players
+          _updateTopPlayers();
+          _isLoading = false;
         });
 
         if (widget.isHost && !_quizActive && !_quizFinished) {
@@ -74,9 +108,45 @@ class _QuizScreenState extends State<QuizScreen> {
             'isActive': false,
           });
         }
+      } else {
+        setState(() {
+          _errorMessage = "Quiz not found. Check quiz ID and try again.";
+          _isLoading = false;
+        });
       }
     } catch (e) {
       print("Error loading quiz data: $e");
+      setState(() {
+        _errorMessage = "Failed to load quiz: $e";
+        _isLoading = false;
+      });
+    }
+  }
+  
+  Future<void> _addPlayerToDatabase() async {
+    if (_currentPlayerId == null) return;
+    
+    // Add player to player data locally
+    _playerData[_currentPlayerId!] = {
+      'name': widget.playerName ?? 'Player',
+      'score': 0,
+      'avatar': widget.playerAvatar ?? 'avatar1',
+    };
+    
+    // Update the database
+    try {
+      await databaseRef
+          .child('quizzes')
+          .child(widget.quizId)
+          .child('players')
+          .child(_currentPlayerId!)
+          .set({
+        'name': widget.playerName ?? 'Player',
+        'score': 0,
+        'avatar': widget.playerAvatar ?? 'avatar1',
+      });
+    } catch (e) {
+      print("Error adding player to database: $e");
     }
   }
 
@@ -86,51 +156,121 @@ class _QuizScreenState extends State<QuizScreen> {
         .child(widget.quizId)
         .onValue
         .listen((event) {
+      if (!mounted) return;
+      
       if (event.snapshot.exists) {
-        Map<String, dynamic> quizData =
-            (event.snapshot.value as Map<Object?, Object?>)
-                .cast<String, dynamic>();
+        try {
+          Map<String, dynamic> quizData =
+              (event.snapshot.value as Map<Object?, Object?>)
+                  .cast<String, dynamic>();
 
-        setState(() {
-          _currentQuestionIndex = quizData['currentQuestionIndex'] ?? 0;
-          _quizActive = quizData['isActive'] ?? false;
-          _playerData = (quizData['players'] as Map<Object?, Object?>)
-              .cast<String, dynamic>();
-          _quizFinished =
-              !_quizActive && _currentQuestionIndex >= _questions.length - 1;
-        });
+          setState(() {
+            _currentQuestionIndex = quizData['currentQuestionIndex'] ?? 0;
+            _quizActive = quizData['isActive'] ?? false;
+            
+            if (quizData.containsKey('players') && quizData['players'] != null) {
+              _playerData = (quizData['players'] as Map<Object?, Object?>)
+                  .cast<String, dynamic>();
+            }
+            
+            // Check if this question has been answered by the current player
+            _checkIfQuestionAnswered();
+            
+            _quizFinished =
+                !_quizActive && _currentQuestionIndex >= _questions.length - 1;
+                
+            // Update top players
+            _updateTopPlayers();
+          });
 
-        if (_quizActive && _questions.isNotEmpty && !_quizFinished) {
-          _startQuestionTimer();
+          if (_quizActive && _questions.isNotEmpty && !_quizFinished) {
+            _startQuestionTimer();
+          }
+        } catch (e) {
+          print("Error processing quiz update: $e");
         }
       }
+    }, onError: (error) {
+      print("Error in real-time updates: $error");
+      setState(() {
+        _errorMessage = "Connection error. Please try again.";
+      });
     });
+  }
+  
+  void _checkIfQuestionAnswered() {
+    if (_currentPlayerId == null || _questions.isEmpty) return;
+    
+    // Reset answered state for new questions
+    _isAnswered = false;
+    
+    // Try to fetch existing responses from database to check if player already answered
+    databaseRef
+        .child('quizzes')
+        .child(widget.quizId)
+        .child('responses')
+        .child(_currentQuestionIndex.toString())
+        .child(_currentPlayerId!)
+        .get()
+        .then((snapshot) {
+      if (snapshot.exists && mounted) {
+        setState(() {
+          _isAnswered = true;
+        });
+      }
+    });
+  }
+
+  void _updateTopPlayers() {
+    // Convert player data to a list and sort by score
+    List<Map<String, dynamic>> players = [];
+    _playerData.forEach((id, data) {
+      if (data is Map) {
+        players.add({
+          'id': id,
+          'name': data['name'] ?? 'Unknown',
+          'score': data['score'] ?? 0,
+          'avatar': data['avatar'] ?? 'avatar1',
+        });
+      }
+    });
+    
+    // Sort by score (descending)
+    players.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
+    
+    // Take top 5
+    _topPlayers = players.take(5).toList();
   }
 
   void _startQuestionTimer() {
     _timer?.cancel();
-    _isAnswered = false;
+    
+    // Don't reset _isAnswered here - it's handled in _checkIfQuestionAnswered
 
-    final questionTime = _questions[_currentQuestionIndex]['time'] ?? 15;
-    setState(() {
-      _remainingTime = questionTime;
-    });
+    // Only start timer if we're not already in a question and the quiz is active
+    if (_quizActive && _questions.isNotEmpty && _currentQuestionIndex < _questions.length) {
+      final questionTime = _questions[_currentQuestionIndex]['time'] ?? 15;
+      setState(() {
+        _remainingTime = questionTime;
+      });
 
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (_remainingTime > 0) {
-        setState(() {
-          _remainingTime--;
-        });
-      } else {
-        timer.cancel();
-        if (!_isAnswered && widget.isHost) {
-          _nextQuestion();
+      _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+        if (_remainingTime > 0 && mounted) {
+          setState(() {
+            _remainingTime--;
+          });
+        } else {
+          timer.cancel();
+          if (!_isAnswered && widget.isHost) {
+            _nextQuestion();
+          }
         }
-      }
-    });
+      });
+    }
   }
 
   Future<void> _nextQuestion() async {
+    _timer?.cancel();
     if (_currentQuestionIndex < _questions.length - 1) {
       await databaseRef.child('quizzes').child(widget.quizId).update({
         'currentQuestionIndex': _currentQuestionIndex + 1,
@@ -145,7 +285,6 @@ class _QuizScreenState extends State<QuizScreen> {
       'isActive': true,
       'currentQuestionIndex': 0,
     });
-    _startQuestionTimer();
   }
 
   Future<void> _endQuiz() async {
@@ -154,152 +293,423 @@ class _QuizScreenState extends State<QuizScreen> {
     });
   }
 
-  void _submitAnswer(String selectedAnswer) {
-    if (!_quizActive || _isAnswered || _quizFinished) return;
+  Future<void> _submitAnswer(String selectedAnswer) async {
+    // Debug info
+    print('Submit answer attempt: $selectedAnswer');
+    print('Quiz active: $_quizActive');
+    print('Is answered: $_isAnswered');
+    print('Quiz finished: $_quizFinished');
+    print('Current player ID: $_currentPlayerId');
+    
+    if (!_quizActive) {
+      print('Cannot submit: quiz not active');
+      return;
+    }
+    
+    if (_isAnswered) {
+      print('Cannot submit: already answered');
+      return;
+    }
+    
+    if (_quizFinished) {
+      print('Cannot submit: quiz finished');
+      return;
+    }
+    
+    if (_currentPlayerId == null) {
+      print('Cannot submit: no player ID');
+      return;
+    }
 
-    _isAnswered = true;
-    _timer?.cancel();
-
-    if (_playerData.isEmpty) return;
-
-    String currentPlayerId = _playerData.keys.first;
-    String correctAnswer = _questions[_currentQuestionIndex]['answer'];
-    bool isCorrect = selectedAnswer == correctAnswer;
-
+    // Set answered flag immediately to prevent double submissions
     setState(() {
-      if (isCorrect) {
-        _playerData[currentPlayerId]['score'] =
-            (_playerData[currentPlayerId]['score'] ?? 0) + 1;
-      }
+      _isAnswered = true;
     });
 
-    databaseRef
-        .child('quizzes')
-        .child(widget.quizId)
-        .child('players')
-        .child(currentPlayerId)
-        .update({'score': _playerData[currentPlayerId]['score']});
+    // Get the current question and check if the answer is correct
+    if (_currentQuestionIndex >= _questions.length) {
+      print('Question index out of bounds');
+      return;
+    }
+    
+    String correctAnswer = _questions[_currentQuestionIndex]['answer'];
+    bool isCorrect = selectedAnswer == correctAnswer;
+    
+    try {
+      // Calculate score if answer is correct
+      if (isCorrect) {
+        // Calculate score based on remaining time (more time = more points)
+        int scoreToAdd = 1000 + (_remainingTime * 100);
+        
+        // Update local player data
+        if (_playerData.containsKey(_currentPlayerId)) {
+          setState(() {
+            _playerData[_currentPlayerId!]['score'] = 
+                (_playerData[_currentPlayerId!]['score'] ?? 0) + scoreToAdd;
+          });
+          
+          // Update the score in the database
+          await databaseRef
+              .child('quizzes')
+              .child(widget.quizId)
+              .child('players')
+              .child(_currentPlayerId!)
+              .update({'score': _playerData[_currentPlayerId!]['score']});
+        }
+      }
 
-    if (widget.isHost) {
-      Future.delayed(const Duration(seconds: 2), () => _nextQuestion());
+      // Record player's answer for this question
+      await databaseRef
+          .child('quizzes')
+          .child(widget.quizId)
+          .child('responses')
+          .child(_currentQuestionIndex.toString())
+          .child(_currentPlayerId!)
+          .set({
+        'answer': selectedAnswer,
+        'correct': isCorrect,
+        'timeSpent': _questions[_currentQuestionIndex]['time'] - _remainingTime,
+      });
+      
+      // Show feedback on the UI (correct/incorrect)
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(isCorrect ? 'Correct!' : 'Sorry, incorrect!'),
+          backgroundColor: isCorrect ? Colors.green : Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
+
+      // If we're the host, move to the next question after a delay
+      if (widget.isHost) {
+        Future.delayed(Duration(seconds: 5), () {
+          _nextQuestion();
+        });
+      }
+    } catch (e) {
+      print('Error submitting answer: $e');
+      // Reset answer state on error so player can try again
+      setState(() {
+        _isAnswered = false;
+      });
+      
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to submit your answer. Try again.'),
+          backgroundColor: Colors.red,
+        ),
+      );
     }
   }
 
-  Widget _buildWaitingScreen({bool isAfterQuiz = false}) {
-    return Scaffold(
-      appBar: AppBar(title: const Text("Quiz")),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const CircularProgressIndicator(),
-            const SizedBox(height: 20),
-            Text(
-              isAfterQuiz
-                  ? "Le quiz est terminé. Merci d'avoir participé!"
-                  : "En attente du démarrage du quiz...",
-              style: const TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              "Code du quiz: ${widget.quizId}",
-              style: const TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            if (widget.isHost && !isAfterQuiz) ...[
-              const SizedBox(height: 30),
-              ElevatedButton(
-                onPressed: _startQuiz,
-                child: const Text("Démarrer le quiz"),
-              ),
-            ],
-            if (isAfterQuiz) ...[
-              const SizedBox(height: 30),
-              Text(
-                "Votre score final: ${_playerData[_playerData.keys.first]['score'] ?? 0}",
-                style: const TextStyle(fontSize: 20),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.of(context).popUntil((route) => route.isFirst);
-                },
-                child: const Text("Retour à l'accueil"),
-              ),
-            ],
-          ],
+  Widget _buildPlayerList() {
+    if (_topPlayers.isEmpty) {
+      return Center(
+        child: Text('No players yet', 
+          style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic)
         ),
+      ); 
+    }
+    
+    return Container(
+      height: 200,
+      child: ListView(
+        children: _topPlayers.map((player) {
+          final bool isCurrentPlayer = player['id'] == _currentPlayerId;
+          return ListTile(
+            leading: CircleAvatar(
+              backgroundImage: AssetImage('assets/images/avatars/${player['avatar']}.jpeg'),
+            ),
+            title: Text(
+              player['name'],
+              style: TextStyle(
+                fontWeight: isCurrentPlayer ? FontWeight.bold : FontWeight.normal,
+                color: isCurrentPlayer ? Theme.of(context).primaryColor : null,
+              ),
+            ),
+            trailing: Text(
+              '${player['score']} pts',
+              style: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          );
+        }).toList(),
       ),
     );
   }
 
-  Widget _buildQuizScreen() {
-    final currentQuestion = _questions[_currentQuestionIndex];
-    final options = List<String>.from(currentQuestion['options'] ?? []);
+  Widget _buildQuestionCard() {
+    if (_questions.isEmpty) {
+      return Center(child: CircularProgressIndicator());
+    }
 
-    return Scaffold(
-      appBar: AppBar(
-        title:
-            Text("Question ${_currentQuestionIndex + 1}/${_questions.length}"),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            LinearProgressIndicator(
-              value: (_currentQuestionIndex + 1) / _questions.length,
+    if (_currentQuestionIndex >= _questions.length) {
+      return Center(child: Text('No more questions available'));
+    }
+
+    final question = _questions[_currentQuestionIndex];
+    final options = List<String>.from(question['options'] ?? []);
+
+    return Column(
+      children: [
+        // Timer indicator
+        LinearProgressIndicator(
+          value: _remainingTime / (question['time'] ?? 15),
+          backgroundColor: Colors.grey[300],
+          valueColor: AlwaysStoppedAnimation<Color>(
+            _remainingTime < 5 ? Colors.red : Theme.of(context).primaryColor,
+          ),
+        ),
+        SizedBox(height: 10),
+        Text(
+          'Time: $_remainingTime',
+          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 20),
+        // Question
+        Card(
+          elevation: 4,
+          margin: EdgeInsets.all(10),
+          child: Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              children: [
+                Text(
+                  'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
+                  style: TextStyle(fontSize: 14, color: Colors.grey[700]),
+                ),
+                SizedBox(height: 10),
+                Text(
+                  question['question'] ?? 'No question text',
+                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                SizedBox(height: 20),
+                // Answer options
+                if (options.isEmpty)
+                  Text('No options available', style: TextStyle(fontStyle: FontStyle.italic))
+                else
+                  ...options.map((option) {
+                    return Padding(
+                      padding: EdgeInsets.symmetric(vertical: 6),
+                      child: ElevatedButton(
+                        onPressed: (_isAnswered || !_quizActive)
+                            ? null
+                            : () => _submitAnswer(option),
+                        style: ElevatedButton.styleFrom(
+                          minimumSize: Size(double.infinity, 50),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                        ),
+                        child: Text(option, style: TextStyle(fontSize: 16)),
+                      ),
+                    );
+                  }).toList(),
+                if (_isAnswered)
+                  Padding(
+                    padding: EdgeInsets.only(top: 20),
+                    child: Text(
+                      'Answer submitted. Waiting for next question...',
+                      style: TextStyle(
+                        fontStyle: FontStyle.italic,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                  ),
+              ],
             ),
-            const SizedBox(height: 20),
-            Text(
-              "Temps restant: $_remainingTime secondes",
-              style: TextStyle(
-                fontSize: 16,
-                color: _remainingTime <= 5 ? Colors.red : Colors.green,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildQuizFinishedView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            'Quiz Completed!',
+            style: TextStyle(
+              fontSize: 28,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          SizedBox(height: 20),
+          Text(
+            'Final Standings',
+            style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 20),
+          _buildPlayerList(),
+          SizedBox(height: 30),
+          if (widget.isHost)
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Back to Dashboard'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+              ),
+            )
+          else
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text('Exit Quiz'),
+              style: ElevatedButton.styleFrom(
+                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
               ),
             ),
-            const SizedBox(height: 20),
-            Text(
-              currentQuestion['question'],
-              style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHostControls() {
+    if (!widget.isHost) return SizedBox();
+
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          if (!_quizActive && !_quizFinished)
+            ElevatedButton(
+              onPressed: _startQuiz,
+              child: Text('Start Quiz'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.green,
+              ),
             ),
-            const SizedBox(height: 20),
-            ...options.map((option) => Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 5),
-                  child: ElevatedButton(
-                    onPressed: _isAnswered ? null : () => _submitAnswer(option),
-                    style: ElevatedButton.styleFrom(
-                      minimumSize: const Size(double.infinity, 50),
-                    ),
-                    child: Text(option),
-                  ),
-                )),
-            const SizedBox(height: 20),
-            Text(
-              "Score: ${_playerData[_playerData.keys.first]['score'] ?? 0}",
-              style: const TextStyle(fontSize: 18),
+          if (_quizActive)
+            ElevatedButton(
+              onPressed: _nextQuestion,
+              child: Text('Skip to Next Question'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.orange,
+              ),
             ),
-          ],
+          if (_quizActive)
+            ElevatedButton(
+              onPressed: _endQuiz,
+              child: Text('End Quiz'),
+              style: ElevatedButton.styleFrom(
+                minimumSize: Size(double.infinity, 50),
+                backgroundColor: Colors.red,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLobbyView() {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Waiting for quiz to start...',
+          style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
         ),
+        SizedBox(height: 20),
+        Text(
+          'Quiz ID: ${widget.quizId}',
+          style: TextStyle(fontSize: 18),
+        ),
+        SizedBox(height: 30),
+        Text(
+          'Players in Lobby:',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
+        SizedBox(height: 10),
+        _buildPlayerList(),
+        SizedBox(height: 20),
+        if (widget.isHost) _buildHostControls(),
+      ],
+    );
+  }
+
+  Widget _buildErrorView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.error_outline, size: 60, color: Colors.red),
+          SizedBox(height: 20),
+          Text(
+            'Error',
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 10),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: 40),
+            child: Text(
+              _errorMessage ?? 'An unknown error occurred',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 16),
+            ),
+          ),
+          SizedBox(height: 30),
+          ElevatedButton(
+            onPressed: () {
+              _loadQuizData();
+            },
+            child: Text('Retry'),
+          ),
+          SizedBox(height: 10),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('Go Back'),
+          ),
+        ],
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_questions.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text("Quiz")),
-        body: const Center(child: CircularProgressIndicator()),
-      );
-    }
-
-    if (!_quizActive || _quizFinished) {
-      return _buildWaitingScreen(isAfterQuiz: _quizFinished);
-    }
-
-    return _buildQuizScreen();
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Live Quiz'),
+        automaticallyImplyLeading: !_quizActive,
+        actions: [
+          if (!widget.isHost && !_quizActive)
+            IconButton(
+              icon: Icon(Icons.exit_to_app),
+              onPressed: () => Navigator.pop(context),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: _isLoading 
+          ? Center(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 20),
+                  Text('Loading quiz...'),
+                ],
+              ),
+            )
+          : _errorMessage != null
+              ? _buildErrorView()
+              : _quizFinished
+                  ? _buildQuizFinishedView()
+                  : (_quizActive
+                      ? Column(
+                          children: [
+                            Expanded(child: _buildQuestionCard()),
+                            if (widget.isHost) _buildHostControls(),
+                          ],
+                        )
+                      : _buildLobbyView()),
+      ),
+    );
   }
 }
