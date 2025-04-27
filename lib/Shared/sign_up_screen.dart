@@ -1,8 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/createQuizScreen.dart';
-import 'package:quiz_app/homeScreen.dart';
-import 'package:quiz_app/loginScreen.dart';
+import 'package:quiz_app/Creator/createQuizScreen.dart';
+import 'package:quiz_app/Shared/homeScreen.dart';
+import 'package:quiz_app/Shared/loginScreen.dart';
 
 class SignUpScreen extends StatefulWidget {
   @override
@@ -24,13 +24,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      
+
       // Update user profile with name
       User? user = _auth.currentUser;
       if (user != null) {
         await user.updateDisplayName(_nameController.text.trim());
       }
-      
+
       // Redirect to HomeScreen after signup
       Navigator.pushReplacement(
         context,
@@ -112,7 +112,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ],
               ),
               SizedBox(height: 40),
-              
+
               // Welcome text
               Text(
                 "Welcome back!",
@@ -123,7 +123,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               SizedBox(height: 40),
-              
+
               // Sign Up Form
               Container(
                 width: 400,
@@ -145,7 +145,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     SizedBox(height: 16),
-                    
+
                     Center(
                       child: Text(
                         "We recommend using your work or school email to keep things separate",
@@ -157,11 +157,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     SizedBox(height: 24),
-                    
+
                     // Google Sign Up Button
                     OutlinedButton.icon(
                       onPressed: _signUpWithGoogle,
-                      icon: Image.asset('assets/images/google.png', height: 24) ?? Icon(Icons.g_mobiledata),
+                      icon:
+                          Image.asset('assets/images/google.png', height: 24) ??
+                              Icon(Icons.g_mobiledata),
                       label: Text("Sign up with Google"),
                       style: OutlinedButton.styleFrom(
                         minimumSize: Size(double.infinity, 48),
@@ -172,20 +174,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     SizedBox(height: 20),
-                    
+
                     // Divider with text
                     Row(
                       children: [
                         Expanded(child: Divider()),
                         Padding(
                           padding: EdgeInsets.symmetric(horizontal: 16),
-                          child: Text("or using email", style: TextStyle(color: Colors.grey)),
+                          child: Text("or using email",
+                              style: TextStyle(color: Colors.grey)),
                         ),
                         Expanded(child: Divider()),
                       ],
                     ),
                     SizedBox(height: 20),
-                    
+
                     // Name field
                     Text("First and last name"),
                     SizedBox(height: 8),
@@ -201,22 +204,28 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               borderRadius: BorderRadius.circular(4),
                               borderSide: BorderSide.none,
                             ),
-                            contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                            contentPadding: EdgeInsets.symmetric(
+                                vertical: 16, horizontal: 12),
                           ),
                           maxLength: 50,
-                          buildCounter: (context, {required currentLength, required isFocused, maxLength}) => null,
+                          buildCounter: (context,
+                                  {required currentLength,
+                                  required isFocused,
+                                  maxLength}) =>
+                              null,
                         ),
                         Padding(
                           padding: EdgeInsets.only(right: 12),
                           child: Text(
                             "50",
-                            style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+                            style: TextStyle(
+                                color: Colors.grey.shade600, fontSize: 12),
                           ),
                         ),
                       ],
                     ),
                     SizedBox(height: 16),
-                    
+
                     // Email field
                     Text("Work email"),
                     SizedBox(height: 8),
@@ -230,13 +239,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           borderRadius: BorderRadius.circular(4),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         hintText: "john@company.com",
                         hintStyle: TextStyle(color: Colors.grey.shade400),
                       ),
                     ),
                     SizedBox(height: 16),
-                    
+
                     // Password field
                     Text("Choose a password"),
                     SizedBox(height: 8),
@@ -250,10 +260,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           borderRadius: BorderRadius.circular(4),
                           borderSide: BorderSide.none,
                         ),
-                        contentPadding: EdgeInsets.symmetric(vertical: 16, horizontal: 12),
+                        contentPadding:
+                            EdgeInsets.symmetric(vertical: 16, horizontal: 12),
                         suffixIcon: IconButton(
                           icon: Icon(
-                            _obscurePassword ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+                            _obscurePassword
+                                ? Icons.visibility_outlined
+                                : Icons.visibility_off_outlined,
                             color: Colors.grey.shade600,
                           ),
                           onPressed: () {
@@ -273,16 +286,16 @@ class _SignUpScreenState extends State<SignUpScreen> {
                       ),
                     ),
                     SizedBox(height: 24),
-                    
+
                     // Sign Up button
                     ElevatedButton(
                       onPressed: _isLoading ? null : _signUp,
-                      child: _isLoading 
+                      child: _isLoading
                           ? SizedBox(
-                              height: 20, 
-                              width: 20, 
-                              child: CircularProgressIndicator(color: Colors.white)
-                            )
+                              height: 20,
+                              width: 20,
+                              child: CircularProgressIndicator(
+                                  color: Colors.white))
                           : Text("Sign up"),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.black,
@@ -297,7 +310,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               SizedBox(height: 16),
-              
+
               // Terms and policies
               Text.rich(
                 TextSpan(
@@ -319,7 +332,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 textAlign: TextAlign.center,
               ),
               SizedBox(height: 40),
-              
+
               // New to Mentimeter section
               Text(
                 "New to Mentimeter?",

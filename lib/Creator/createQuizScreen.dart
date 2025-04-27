@@ -2,14 +2,16 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
-import 'package:quiz_app/loginScreen.dart';
+import 'package:quiz_app/Shared/loginScreen.dart';
 import 'dart:math';
-import 'package:quiz_app/quiz_created_screen.dart';
+import 'package:quiz_app/Player/quiz_created_screen.dart';
 
 class CreateQuizScreen extends StatefulWidget {
   @override
   _CreateQuizScreenState createState() => _CreateQuizScreenState();
 }
+
+final String message = "Ceci est un message affiché en haut.";
 
 class _CreateQuizScreenState extends State<CreateQuizScreen> {
   final TextEditingController _titleController = TextEditingController();
