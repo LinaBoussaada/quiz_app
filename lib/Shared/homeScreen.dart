@@ -21,29 +21,28 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _verifyAndJoinQuiz() async {
     final quizCode = _quizCodeController.text.trim();
-    
-    if (quizCode.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text("Please enter a quiz code"),
-          backgroundColor: Colors.red,
-        )
-      );
-      return;
-    }
-    
+
+    //if (quizCode.isEmpty) {
+    // ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+    // content: Text("Please enter a quiz code"),
+    //backgroundColor: Colors.red,
+//      ));
+    // return;
+//    }
+
     setState(() {
       _isVerifying = true;
     });
-    
+
     try {
       // Verify if quiz exists
-      DataSnapshot snapshot = await databaseRef.child('quizzes').child(quizCode).get();
-      
+      DataSnapshot snapshot =
+          await databaseRef.child('quizzes').child(quizCode).get();
+
       setState(() {
         _isVerifying = false;
       });
-      
+
       if (snapshot.exists) {
         // Quiz exists, navigate to JoinQuizScreen with the code
         Navigator.push(
@@ -54,24 +53,20 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       } else {
         // Quiz does not exist
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Invalid quiz code. Please check and try again."),
-            backgroundColor: Colors.red,
-          )
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text("Invalid quiz code. Please check and try again."),
+          backgroundColor: Colors.red,
+        ));
       }
     } catch (e) {
       setState(() {
         _isVerifying = false;
       });
-      
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text("Error verifying quiz: $e"),
-          backgroundColor: Colors.red,
-        )
-      );
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text("Error verifying quiz: $e"),
+        backgroundColor: Colors.red,
+      ));
     }
   }
 
@@ -202,10 +197,10 @@ class _HomeScreenState extends State<HomeScreen> {
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        filled: true,
-                        fillColor: Colors.white,
+                        // filled: true,
+                        // fillColor: Colors.white,
                       ),
-                      keyboardType: TextInputType.number,
+                      // keyboardType: TextInputType.number,
                     ),
                   ),
                   const SizedBox(width: 10),
@@ -317,7 +312,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
-  
+
   @override
   void dispose() {
     _quizCodeController.dispose();
