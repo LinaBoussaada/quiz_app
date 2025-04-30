@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
+//import 'package:quiz_app/SimpleQrCode.dart';
 
 class QuizScreen extends StatefulWidget {
   final String quizId;
@@ -295,7 +296,8 @@ class _QuizScreenState extends State<QuizScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-
+    // Dans votre build:
+    // SimpleQrCode(data: "Votre texte ou code ici");
     if (!_quizActive || _quizFinished) {
       return _buildWaitingScreen(isAfterQuiz: _quizFinished);
     }
