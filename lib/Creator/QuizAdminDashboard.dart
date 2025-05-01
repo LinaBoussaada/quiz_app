@@ -531,38 +531,126 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
   }
 
   Widget _buildParticipantsList(Map<String, dynamic> participants) {
-    return ListView.builder(
-      padding: EdgeInsets.all(8),
-      itemCount: participants.length,
-      itemBuilder: (context, index) {
-        final entry = participants.entries.elementAt(index);
-        final playerId = entry.key;
-        final player = entry.value;
+  return ListView.builder(
+    padding: EdgeInsets.all(8),
+    itemCount: participants.length,
+    itemBuilder: (context, index) {
+      final entry = participants.entries.elementAt(index);
+      final playerId = entry.key;
+      final player = entry.value;
+      final String avatarId = player['avatar'] ?? 'camion'; // Default to 'camion' if no avatar
 
-        return Card(
-          margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
-          child: ListTile(
-            leading: CircleAvatar(
-              backgroundColor: Colors.deepPurple,
+      // Find the avatar color from the image ID (accessing the same avatars list from JoinQuizScreen)
+      Color avatarColor = Colors.deepPurple;
+      String avatarImagePath = 'assets/images/avatars/camion.jpeg'; // Default path
+      
+      // This should match your avatar list in JoinQuizScreen
+      final Map<String, Map<String, dynamic>> avatarMap = {
+        'camion': {'color': Color(0xFF90CAF9), 'path': 'assets/images/avatars/camion.jpeg'},
+        'cat': {'color': Color(0xFFEF9A9A), 'path': 'assets/images/avatars/cat.jpeg'},
+        'girly': {'color': Color(0xFFA5D6A7), 'path': 'assets/images/avatars/girly.jpeg'},
+        'temseh': {'color': Color(0xFFFFCC80), 'path': 'assets/images/avatars/temseh.jpeg'},
+        'aqroub': {'color': Color(0xFFCE93D8), 'path': 'assets/images/avatars/aqroub.jpeg'},
+        'black_cat': {'color': Color(0xFF9E9E9E), 'path': 'assets/images/avatars/black_cat.jpeg'},
+        'couchon': {'color': Color(0xFFF48FB1), 'path': 'assets/images/avatars/couchon.jpeg'},
+        'dabdoub': {'color': Color(0xFF80CBC4), 'path': 'assets/images/avatars/dabdoub.jpeg'},
+        'dhib': {'color': Color(0xFFBCAAA4), 'path': 'assets/images/avatars/dhib.jpeg'},
+        'fil': {'color': Color(0xFF9FA8DA), 'path': 'assets/images/avatars/fil.jpeg'},
+        'nahla': {'color': Color(0xFFFFE082), 'path': 'assets/images/avatars/nahla.jpeg'},
+        'mafjouu': {'color': Color(0xFF80DEEA), 'path': 'assets/images/avatars/mafjouu.jpeg'},
+        'far': {'color': Color(0xFFFFAB91), 'path': 'assets/images/avatars/far.jpeg'},
+      };
+      
+      if (avatarMap.containsKey(avatarId)) {
+        avatarColor = avatarMap[avatarId]!['color'] as Color;
+        avatarImagePath = avatarMap[avatarId]!['path'] as String;
+      }
+
+      return Card(
+        margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+        elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: avatarColor.withOpacity(0.3),
+            width: 1,
+          ),
+        ),
+        child: ListTile(
+          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          leading: Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: avatarColor.withOpacity(0.2),
+              border: Border.all(
+                color: avatarColor,
+                width: 2,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.1),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
             ),
-            title: Text(
-              player['name'] ?? 'Anonyme',
-              style: TextStyle(fontWeight: FontWeight.bold),
+            child: ClipOval(
+              child: Image.asset(
+                avatarImagePath,
+                fit: BoxFit.cover,
+              ),
             ),
-            subtitle: Text('Score: ${player['score'] ?? 0}'),
-            trailing: _quizActive
-                ? Icon(
+          ),
+          title: Text(
+            player['name'] ?? 'Anonyme',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+            ),
+          ),
+          subtitle: Text(
+            'Score: ${player['score'] ?? 0}',
+            style: TextStyle(
+              color: Colors.grey.shade700,
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.deepPurple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: Text(
+                  '${player['score'] ?? 0} pts',
+                  style: TextStyle(
+                    fontWeight: FontWeight.bold,
+                    color: Colors.deepPurple,
+                  ),
+                ),
+              ),
+              if (_quizActive)
+                Padding(
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: Icon(
                     player['isCorrect'] == true
                         ? Icons.check_circle
                         : Icons.circle_outlined,
                     color: player['isCorrect'] == true
                         ? Colors.green
                         : Colors.grey,
-                  )
-                : null,
+                    size: 28,
+                  ),
+                ),
+            ],
           ),
-        );
-      },
-    );
-  }
+        ),
+      );
+    },
+  );
+}
 }

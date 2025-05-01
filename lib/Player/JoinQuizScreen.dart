@@ -122,94 +122,7 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
       _quizCodeController.text = widget.initialQuizCode!;
     }
   }
-/*
-  Future<void> _joinQuiz() async {
-    setState(() {
-      _errorMessage = null;
-      _isLoading = true;
-    });
 
-    String quizId = _quizCodeController.text.trim();
-    String playerName = _playerNameController.text.trim();
-    String userId = DateTime.now().millisecondsSinceEpoch.toString();
-
-    if (quizId.isEmpty || playerName.isEmpty) {
-      setState(() {
-        _errorMessage = "Please enter both quiz code and your name.";
-        _isLoading = false;
-      });
-      return;
-    }
-
-    try {
-      DataSnapshot snapshot =
-          await databaseRef.child('quizzes').child(quizId).get();
-
-      if (snapshot.exists) {
-        Map<String, dynamic> quizData =
-            (snapshot.value as Map<Object?, Object?>).cast<String, dynamic>();
-
-        bool isActive = quizData['isActive'] ?? false;
-        int currentQuestionIndex = quizData['currentQuestionIndex'] ?? 0;
-        List<dynamic> questions = quizData['questions'] ?? [];
-
-        if (!isActive && currentQuestionIndex >= questions.length - 1) {
-          if (!mounted) return;
-          setState(() {
-            _errorMessage = "This quiz has already ended.";
-            _isLoading = false;
-          });
-          return;
-        }
-
-        await databaseRef
-            .child('quizzes')
-            .child(quizId)
-            .child('players')
-            .child(userId)
-            .set({
-          'name': playerName,
-          'score': 0,
-          'avatar': _selectedAvatar,
-          'joinedAt': ServerValue.timestamp,
-        });
-
-        if (!mounted) return;
-
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text("Joined the quiz successfully!"),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 2),
-          ),
-        );
-
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => QuizScreen(
-              quizId: quizId,
-              isHost: false,
-              playerName: playerName,
-              playerAvatar: _selectedAvatar,
-              playerId: userId,
-            ),
-          ),
-        );
-      } else {
-        setState(() {
-          _errorMessage =
-              "Quiz not found. Please check the code and try again.";
-          _isLoading = false;
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _errorMessage = "Error joining quiz: $e";
-        _isLoading = false;
-      });
-    }
-  }*/
 
   Future<void> _joinQuiz() async {
     setState(() {
@@ -429,55 +342,79 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
     );
   }
 
-  Widget _buildAvatarSelector() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          "Select your avatar:",
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+ Widget _buildAvatarSelector() {
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      const Padding(
+        padding: EdgeInsets.only(left: 8.0, bottom: 12.0),
+        child: Text(
+          "Choose your avatar:",
+          style: TextStyle(
+            fontSize: 18, 
+            fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
+          ),
         ),
-        const SizedBox(height: 8),
-        SizedBox(
-          height: 110,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: _avatars.length,
-            itemBuilder: (context, index) {
-              final avatar = _avatars[index];
-              final isSelected = avatar['id'] == _selectedAvatar;
-
-              return GestureDetector(
+      ),
+      SizedBox(
+        height: 140, // Increased height for the cards
+        child: ListView.builder(
+          scrollDirection: Axis.horizontal,
+          itemCount: _avatars.length,
+          itemBuilder: (context, index) {
+            final avatar = _avatars[index];
+            final isSelected = avatar['id'] == _selectedAvatar;
+            
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 6.0),
+              child: GestureDetector(
                 onTap: () {
                   setState(() {
                     _selectedAvatar = avatar['id'];
                   });
                 },
-                child: Container(
-                  margin: const EdgeInsets.only(right: 15),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 250),
+                  width: 90,
+                  decoration: BoxDecoration(
+                    color: avatar['color'].withOpacity(isSelected ? 0.3 : 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: isSelected ? avatar['color'] : Colors.transparent,
+                      width: 2.5,
+                    ),
+                    boxShadow: isSelected
+                      ? [
+                          BoxShadow(
+                            color: avatar['color'].withOpacity(0.4),
+                            blurRadius: 8,
+                            spreadRadius: 1,
+                            offset: const Offset(0, 2),
+                          )
+                        ]
+                      : null,
+                  ),
                   child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        width: 70,
-                        height: 70,
+                      Container(
+                        width: 65,
+                        height: 65,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
+                          color: avatar['color'].withOpacity(0.2),
                           border: Border.all(
-                            color: isSelected
-                                ? const Color(0xFF4F46E5)
-                                : Colors.transparent,
-                            width: 3,
+                            color: avatar['color'],
+                            width: 2,
                           ),
-                          boxShadow: isSelected
-                              ? [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.2),
-                                    blurRadius: 5,
-                                    offset: const Offset(0, 3),
-                                  )
-                                ]
-                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.1),
+                              blurRadius: 4,
+                              offset: const Offset(0, 2),
+                            )
+                          ],
                         ),
                         child: ClipOval(
                           child: Image.asset(
@@ -490,21 +427,27 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
                       Text(
                         avatar['name'],
                         style: TextStyle(
-                          color: isSelected
-                              ? const Color(0xFF4F46E5)
-                              : Colors.black87,
-                          fontWeight:
-                              isSelected ? FontWeight.bold : FontWeight.normal,
+                          color: isSelected ? avatar['color'] : Colors.black87,
+                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontSize: 13,
                         ),
+                        textAlign: TextAlign.center,
                       ),
+                      if (isSelected)
+                        Icon(
+                          Icons.check_circle,
+                          color: avatar['color'],
+                          size: 18,
+                        ),
                     ],
                   ),
                 ),
-              );
-            },
-          ),
+              ),
+            );
+          },
         ),
-      ],
-    );
-  }
+      ),
+    ],
+  );
+}
 }
