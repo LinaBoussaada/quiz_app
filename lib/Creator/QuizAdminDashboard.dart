@@ -2,6 +2,7 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:async';
+import 'package:qr_flutter/qr_flutter.dart';
 
 class QuizAdminDashboard extends StatefulWidget {
   final String quizId;
@@ -182,6 +183,37 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
     );
   }
 
+  void _showQRDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text("Code QR du Quiz"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            QrImageView(
+              data: widget.quizId,
+              version: QrVersions.auto,
+              size: 200.0,
+              backgroundColor: Colors.white,
+            ),
+            SizedBox(height: 20),
+            Text(
+              "ID: ${widget.quizId}",
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text("Fermer"),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _nextQuestion() async {
     _questionTimer?.cancel();
 
@@ -231,9 +263,25 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
               tooltip: 'Démarrer le quiz',
               backgroundColor: _quizActive ? Colors.grey : Colors.green,
             ),
+      /*  appBar: AppBar(
+        title: Text("Quiz Admin: $_quizTitle"),
+        actions: [
+          if (_quizActive && !_quizFinished)
+            IconButton(
+              icon: const Icon(Icons.stop),
+              onPressed: _endQuiz,
+              tooltip: 'Terminer le quiz',
+            ),
+        ],
+      ), */
       appBar: AppBar(
         title: Text("Quiz Admin: $_quizTitle"),
         actions: [
+          IconButton(
+            icon: Icon(Icons.qr_code),
+            onPressed: _showQRDialog,
+            tooltip: 'Afficher QR Code',
+          ),
           if (_quizActive && !_quizFinished)
             IconButton(
               icon: const Icon(Icons.stop),
@@ -245,7 +293,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       body: Column(
         children: [
           // Section Code du Quiz
-          Card(
+          /* Card(
             margin: EdgeInsets.all(16),
             child: Padding(
               padding: EdgeInsets.all(16),
@@ -289,6 +337,81 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
                     onPressed: _copyQuizIdToClipboard,
                     tooltip: "Copier le code",
                     color: Colors.blue,
+                  ),
+                ],
+              ),
+            ),
+          ), */
+          // Section Code du Quiz
+          Card(
+            margin: EdgeInsets.all(16),
+            child: Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.qr_code, size: 36, color: Colors.deepPurple),
+                      SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              "Code du Quiz",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            SizedBox(height: 4),
+                            Text(
+                              widget.quizId,
+                              style: TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.deepPurple,
+                                letterSpacing: 2,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Column(
+                        children: [
+                          IconButton(
+                            icon: Icon(Icons.copy),
+                            onPressed: _copyQuizIdToClipboard,
+                            tooltip: "Copier le code",
+                            color: Colors.blue,
+                          ),
+                          IconButton(
+                            icon: Icon(Icons.qr_code),
+                            onPressed: _showQRDialog,
+                            tooltip: "Afficher QR Code",
+                            color: Colors.deepPurple,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  SizedBox(height: 16),
+                  // Mini QR Code preview
+                  GestureDetector(
+                    onTap: _showQRDialog,
+                    child: Container(
+                      padding: EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.deepPurple),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: QrImageView(
+                        data: widget.quizId,
+                        version: QrVersions.auto,
+                        size: 80.0,
+                        backgroundColor: Colors.white,
+                      ),
+                    ),
                   ),
                 ],
               ),
