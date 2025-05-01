@@ -122,16 +122,6 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
     });
   }
 
-/*
-  Future<void> _startQuiz() async {
-    await _quizRef.update({
-      'isActive': true,
-      'currentQuestionIndex': 0,
-      'players': {}, // Réinitialise la liste des joueurs au démarrage du quiz
-    });
-    _startQuestionTimer();
-  }*/
-
   Future<void> _startQuiz() async {
     // Generate a new session ID based on timestamp
     String newSessionId = DateTime.now().millisecondsSinceEpoch.toString();
@@ -292,56 +282,6 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       ),
       body: Column(
         children: [
-          // Section Code du Quiz
-          /* Card(
-            margin: EdgeInsets.all(16),
-            child: Padding(
-              padding: EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Icon(Icons.qr_code, size: 36, color: Colors.deepPurple),
-                  SizedBox(width: 16),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          "Code du Quiz",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        SizedBox(height: 4),
-                        Text(
-                          widget.quizId,
-                          style: TextStyle(
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.deepPurple,
-                            letterSpacing: 2,
-                          ),
-                        ),
-                        Text(
-                          "Les participants peuvent rejoindre avec ce code",
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  IconButton(
-                    icon: Icon(Icons.copy),
-                    onPressed: _copyQuizIdToClipboard,
-                    tooltip: "Copier le code",
-                    color: Colors.blue,
-                  ),
-                ],
-              ),
-            ),
-          ), */
           // Section Code du Quiz
           Card(
             margin: EdgeInsets.all(16),

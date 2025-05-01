@@ -4,7 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:quiz_app/Creator/QuizAdminController.dart';
-
+/*
 class QuizAdminScreen extends StatefulWidget {
   final String quizId;
 
@@ -46,3 +46,4 @@ class _QuizAdminScreenState extends State<QuizAdminScreen> {
     );
   }
 }
+*/
