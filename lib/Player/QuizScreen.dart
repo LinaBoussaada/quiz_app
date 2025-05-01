@@ -84,9 +84,7 @@ class _QuizScreenState extends State<QuizScreen> {
             _playerData = {};
           }
 
-          // If we're not the host and we have an ID, focus on our player data
           if (!widget.isHost && _currentPlayerId != null) {
-            // Make sure this player is in the database
             if (!_playerData.containsKey(_currentPlayerId)) {
               _addPlayerToDatabase();
             }
@@ -97,16 +95,12 @@ class _QuizScreenState extends State<QuizScreen> {
           _quizFinished =
               !_quizActive && _currentQuestionIndex >= _questions.length - 1;
 
-          // Update top players
           _updateTopPlayers();
           _isLoading = false;
         });
 
-        if (widget.isHost && !_quizActive && !_quizFinished) {
-          await databaseRef.child('quizzes').child(widget.quizId).update({
-            'currentQuestionIndex': 0,
-            'isActive': false,
-          });
+        if (_quizActive && !_quizFinished) {
+          _startQuestionTimer();
         }
       } else {
         setState(() {
@@ -126,14 +120,12 @@ class _QuizScreenState extends State<QuizScreen> {
   Future<void> _addPlayerToDatabase() async {
     if (_currentPlayerId == null) return;
 
-    // Add player to player data locally
     _playerData[_currentPlayerId!] = {
       'name': widget.playerName ?? 'Player',
       'score': 0,
       'avatar': widget.playerAvatar ?? 'avatar1',
     };
 
-    // Update the database
     try {
       await databaseRef
           .child('quizzes')
@@ -149,56 +141,6 @@ class _QuizScreenState extends State<QuizScreen> {
       print("Error adding player to database: $e");
     }
   }
-/*
-  void _setupRealTimeUpdates() {
-    _quizStateSubscription = databaseRef
-        .child('quizzes')
-        .child(widget.quizId)
-        .onValue
-        .listen((event) {
-      if (!mounted) return;
-
-      if (event.snapshot.exists) {
-        try {
-          Map<String, dynamic> quizData =
-              (event.snapshot.value as Map<Object?, Object?>)
-                  .cast<String, dynamic>();
-
-          setState(() {
-            _currentQuestionIndex = quizData['currentQuestionIndex'] ?? 0;
-            _quizActive = quizData['isActive'] ?? false;
-
-            if (quizData.containsKey('players') &&
-                quizData['players'] != null) {
-              _playerData = (quizData['players'] as Map<Object?, Object?>)
-                  .cast<String, dynamic>();
-            }
-
-            // Check if this question has been answered by the current player
-            _checkIfQuestionAnswered();
-
-            _quizFinished =
-                !_quizActive && _currentQuestionIndex >= _questions.length - 1;
-
-            // Update top players
-            _updateTopPlayers();
-          });
-
-          if (_quizActive && _questions.isNotEmpty && !_quizFinished) {
-            _startQuestionTimer();
-          }
-        } catch (e) {
-          print("Error processing quiz update: $e");
-        }
-      }
-    }, onError: (error) {
-      print("Error in real-time updates: $error");
-      setState(() {
-        _errorMessage = "Connection error. Please try again.";
-      });
-    });
-  }
-*/
 
   void _setupRealTimeUpdates() {
     _quizStateSubscription = databaseRef
@@ -218,24 +160,23 @@ class _QuizScreenState extends State<QuizScreen> {
             _currentQuestionIndex = quizData['currentQuestionIndex'] ?? 0;
             _quizActive = quizData['isActive'] ?? false;
 
-            if (quizData.containsKey('players') &&
-                quizData['players'] != null) {
+            if (quizData.containsKey('players') && quizData['players'] != null) {
               _playerData = (quizData['players'] as Map<Object?, Object?>)
                   .cast<String, dynamic>();
             }
 
-            // Check if this question has been answered by the current player
             _checkIfQuestionAnswered();
 
             _quizFinished =
                 !_quizActive && _currentQuestionIndex >= _questions.length - 1;
 
-            // Update top players
             _updateTopPlayers();
           });
 
-          if (_quizActive && _questions.isNotEmpty && !_quizFinished) {
+          if (_quizActive && !_quizFinished) {
             _startQuestionTimer();
+          } else {
+            _timer?.cancel();
           }
         } catch (e) {
           print("Error processing quiz update: $e");
@@ -252,10 +193,8 @@ class _QuizScreenState extends State<QuizScreen> {
   void _checkIfQuestionAnswered() {
     if (_currentPlayerId == null || _questions.isEmpty) return;
 
-    // Reset answered state for new questions
     _isAnswered = false;
 
-    // Try to fetch existing responses from database to check if player already answered
     databaseRef
         .child('quizzes')
         .child(widget.quizId)
@@ -273,7 +212,6 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   void _updateTopPlayers() {
-    // Convert player data to a list and sort by score
     List<Map<String, dynamic>> players = [];
     _playerData.forEach((id, data) {
       if (data is Map) {
@@ -286,19 +224,14 @@ class _QuizScreenState extends State<QuizScreen> {
       }
     });
 
-    // Sort by score (descending)
     players.sort((a, b) => (b['score'] as int).compareTo(a['score'] as int));
-
-    // Take top 5
     _topPlayers = players.take(5).toList();
   }
 
   void _startQuestionTimer() {
     _timer?.cancel();
+    _isAnswered = false;
 
-    // Don't reset _isAnswered here - it's handled in _checkIfQuestionAnswered
-
-    // Only start timer if we're not already in a question and the quiz is active
     if (_quizActive &&
         _questions.isNotEmpty &&
         _currentQuestionIndex < _questions.length) {
@@ -308,16 +241,21 @@ class _QuizScreenState extends State<QuizScreen> {
       });
 
       _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-        if (_remainingTime > 0 && mounted) {
-          setState(() {
-            _remainingTime--;
-          });
-        } else {
+        if (!mounted) {
           timer.cancel();
-          if (!_isAnswered && widget.isHost) {
-            _nextQuestion();
-          }
+          return;
         }
+
+        setState(() {
+          if (_remainingTime > 0) {
+            _remainingTime--;
+          } else {
+            timer.cancel();
+            if (!_isAnswered && widget.isHost) {
+              _nextQuestion();
+            }
+          }
+        });
       });
     }
   }
@@ -327,6 +265,7 @@ class _QuizScreenState extends State<QuizScreen> {
     if (_currentQuestionIndex < _questions.length - 1) {
       await databaseRef.child('quizzes').child(widget.quizId).update({
         'currentQuestionIndex': _currentQuestionIndex + 1,
+        'isActive': true,
       });
     } else {
       await _endQuiz();
@@ -347,61 +286,27 @@ class _QuizScreenState extends State<QuizScreen> {
   }
 
   Future<void> _submitAnswer(String selectedAnswer) async {
-    // Debug info
-    print('Submit answer attempt: $selectedAnswer');
-    print('Quiz active: $_quizActive');
-    print('Is answered: $_isAnswered');
-    print('Quiz finished: $_quizFinished');
-    print('Current player ID: $_currentPlayerId');
-
-    if (!_quizActive) {
-      print('Cannot submit: quiz not active');
+    if (!_quizActive || _isAnswered || _quizFinished || _currentPlayerId == null) {
       return;
     }
 
-    if (_isAnswered) {
-      print('Cannot submit: already answered');
-      return;
-    }
-
-    if (_quizFinished) {
-      print('Cannot submit: quiz finished');
-      return;
-    }
-
-    if (_currentPlayerId == null) {
-      print('Cannot submit: no player ID');
-      return;
-    }
-
-    // Set answered flag immediately to prevent double submissions
     setState(() {
       _isAnswered = true;
     });
-
-    // Get the current question and check if the answer is correct
-    if (_currentQuestionIndex >= _questions.length) {
-      print('Question index out of bounds');
-      return;
-    }
 
     String correctAnswer = _questions[_currentQuestionIndex]['answer'];
     bool isCorrect = selectedAnswer == correctAnswer;
 
     try {
-      // Calculate score if answer is correct
       if (isCorrect) {
-        // Calculate score based on remaining time (more time = more points)
         int scoreToAdd = 1000 + (_remainingTime * 100);
 
-        // Update local player data
         if (_playerData.containsKey(_currentPlayerId)) {
           setState(() {
             _playerData[_currentPlayerId!]['score'] =
                 (_playerData[_currentPlayerId!]['score'] ?? 0) + scoreToAdd;
           });
 
-          // Update the score in the database
           await databaseRef
               .child('quizzes')
               .child(widget.quizId)
@@ -411,7 +316,6 @@ class _QuizScreenState extends State<QuizScreen> {
         }
       }
 
-      // Record player's answer for this question
       await databaseRef
           .child('quizzes')
           .child(widget.quizId)
@@ -424,30 +328,27 @@ class _QuizScreenState extends State<QuizScreen> {
         'timeSpent': _questions[_currentQuestionIndex]['time'] - _remainingTime,
       });
 
-      // Show feedback on the UI (correct/incorrect)
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(isCorrect ? 'Correct!' : 'Sorry, incorrect!'),
           backgroundColor: isCorrect ? Colors.green : Colors.red,
-          duration: Duration(seconds: 2),
+          duration: const Duration(seconds: 2),
         ),
       );
 
-      // If we're the host, move to the next question after a delay
       if (widget.isHost) {
-        Future.delayed(Duration(seconds: 5), () {
+        Future.delayed(const Duration(seconds: 5), () {
           _nextQuestion();
         });
       }
     } catch (e) {
       print('Error submitting answer: $e');
-      // Reset answer state on error so player can try again
       setState(() {
         _isAnswered = false;
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
           content: Text('Failed to submit your answer. Try again.'),
           backgroundColor: Colors.red,
         ),
@@ -457,13 +358,13 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Widget _buildPlayerList() {
     if (_topPlayers.isEmpty) {
-      return Center(
+      return const Center(
         child: Text('No players yet',
             style: TextStyle(fontSize: 16, fontStyle: FontStyle.italic)),
       );
     }
 
-    return Container(
+    return SizedBox(
       height: 200,
       child: ListView(
         children: _topPlayers.map((player) {
@@ -483,7 +384,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             trailing: Text(
               '${player['score']} pts',
-              style: TextStyle(
+              style: const TextStyle(
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
               ),
@@ -496,11 +397,11 @@ class _QuizScreenState extends State<QuizScreen> {
 
   Widget _buildQuestionCard() {
     if (_questions.isEmpty) {
-      return Center(child: CircularProgressIndicator());
+      return const Center(child: CircularProgressIndicator());
     }
 
     if (_currentQuestionIndex >= _questions.length) {
-      return Center(child: Text('No more questions available'));
+      return const Center(child: Text('No more questions available'));
     }
 
     final question = _questions[_currentQuestionIndex];
@@ -508,7 +409,6 @@ class _QuizScreenState extends State<QuizScreen> {
 
     return Column(
       children: [
-        // Timer indicator
         LinearProgressIndicator(
           value: _remainingTime / (question['time'] ?? 15),
           backgroundColor: Colors.grey[300],
@@ -516,56 +416,54 @@ class _QuizScreenState extends State<QuizScreen> {
             _remainingTime < 5 ? Colors.red : Theme.of(context).primaryColor,
           ),
         ),
-        SizedBox(height: 10),
+        const SizedBox(height: 10),
         Text(
-          'Time: $_remainingTime',
-          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          'Time: $_remainingTime/${question['time'] ?? 15}s',
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
         ),
-        SizedBox(height: 20),
-        // Question
+        const SizedBox(height: 20),
         Card(
           elevation: 4,
-          margin: EdgeInsets.all(10),
+          margin: const EdgeInsets.all(10),
           child: Padding(
-            padding: EdgeInsets.all(16),
+            padding: const EdgeInsets.all(16),
             child: Column(
               children: [
                 Text(
                   'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
                   style: TextStyle(fontSize: 14, color: Colors.grey[700]),
                 ),
-                SizedBox(height: 10),
+                const SizedBox(height: 10),
                 Text(
                   question['question'] ?? 'No question text',
-                  style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
+                  style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 20),
-                // Answer options
+                const SizedBox(height: 20),
                 if (options.isEmpty)
-                  Text('No options available',
+                  const Text('No options available',
                       style: TextStyle(fontStyle: FontStyle.italic))
                 else
                   ...options.map((option) {
                     return Padding(
-                      padding: EdgeInsets.symmetric(vertical: 6),
+                      padding: const EdgeInsets.symmetric(vertical: 6),
                       child: ElevatedButton(
                         onPressed: (_isAnswered || !_quizActive)
                             ? null
                             : () => _submitAnswer(option),
                         style: ElevatedButton.styleFrom(
-                          minimumSize: Size(double.infinity, 50),
+                          minimumSize: const Size(double.infinity, 50),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10),
                           ),
                         ),
-                        child: Text(option, style: TextStyle(fontSize: 16)),
+                        child: Text(option, style: const TextStyle(fontSize: 16)),
                       ),
                     );
                   }).toList(),
                 if (_isAnswered)
                   Padding(
-                    padding: EdgeInsets.only(top: 20),
+                    padding: const EdgeInsets.only(top: 20),
                     child: Text(
                       'Answer submitted. Waiting for next question...',
                       style: TextStyle(
@@ -601,7 +499,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     const Icon(Icons.people, size: 60, color: Colors.blue),
                     const SizedBox(height: 20),
                     Text(
-                      'En attente du début du quiz',
+                      'Waiting for quiz to start',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -611,7 +509,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      'Code du quiz : ${widget.quizId}',
+                      'Quiz code: ${widget.quizId}',
                       style: const TextStyle(fontSize: 18),
                     ),
                     const SizedBox(height: 30),
@@ -625,14 +523,14 @@ class _QuizScreenState extends State<QuizScreen> {
                           ),
                           const SizedBox(height: 10),
                           Text(
-                            'Prêt(e), ${widget.playerName}!',
+                            'Ready, ${widget.playerName}!',
                             style: const TextStyle(fontSize: 18),
                           ),
                           const SizedBox(height: 20),
                         ],
                       ),
                     const Text(
-                      'Joueurs en attente :',
+                      'Waiting players:',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -645,7 +543,7 @@ class _QuizScreenState extends State<QuizScreen> {
                           ? const Padding(
                               padding: EdgeInsets.all(16),
                               child: Text(
-                                'Aucun joueur pour le moment',
+                                'No players yet',
                                 style: TextStyle(fontStyle: FontStyle.italic),
                               ),
                             )
@@ -661,7 +559,7 @@ class _QuizScreenState extends State<QuizScreen> {
                                     backgroundImage: AssetImage(
                                         'assets/images/avatars/${player['avatar'] ?? 'avatar1'}.jpeg'),
                                   ),
-                                  title: Text(player['name'] ?? 'Joueur'),
+                                  title: Text(player['name'] ?? 'Player'),
                                 );
                               },
                             ),
@@ -700,7 +598,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(height: 20),
                     Text(
-                      'Quiz Terminé!',
+                      'Quiz Finished!',
                       style: TextStyle(
                         fontSize: 28,
                         fontWeight: FontWeight.bold,
@@ -709,7 +607,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(height: 20),
                     const Text(
-                      'Classement final',
+                      'Final Ranking',
                       style: TextStyle(
                         fontSize: 22,
                         fontWeight: FontWeight.bold,
@@ -720,7 +618,7 @@ class _QuizScreenState extends State<QuizScreen> {
                       const Padding(
                         padding: EdgeInsets.all(16),
                         child: Text(
-                          'Aucun participant',
+                          'No participants',
                           style: TextStyle(fontStyle: FontStyle.italic),
                         ),
                       )
@@ -784,8 +682,8 @@ class _QuizScreenState extends State<QuizScreen> {
                         ),
                         child: Text(
                           widget.isHost
-                              ? 'Retour au tableau de bord'
-                              : 'Quitter le quiz',
+                              ? 'Back to dashboard'
+                              : 'Leave quiz',
                           style: const TextStyle(fontSize: 16),
                         ),
                       ),
@@ -816,7 +714,7 @@ class _QuizScreenState extends State<QuizScreen> {
                 ),
               ),
               child: const Text(
-                'Démarrer le Quiz',
+                'Start Quiz',
                 style: TextStyle(fontSize: 16),
               ),
             ),
@@ -833,7 +731,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Question Suivante',
+                    'Next Question',
                     style: TextStyle(fontSize: 16),
                   ),
                 ),
@@ -848,7 +746,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ),
                   child: const Text(
-                    'Terminer le Quiz',
+                    'End Quiz',
                     style: TextStyle(fontSize: 16),
                   ),
                 ),
@@ -873,7 +771,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 20),
             const Text(
-              'Oups!',
+              'Oops!',
               style: TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.bold,
@@ -881,7 +779,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
             const SizedBox(height: 10),
             Text(
-              _errorMessage ?? 'Une erreur inconnue est survenue',
+              _errorMessage ?? 'An unknown error occurred',
               textAlign: TextAlign.center,
               style: const TextStyle(fontSize: 16),
             ),
@@ -895,65 +793,14 @@ class _QuizScreenState extends State<QuizScreen> {
                   borderRadius: BorderRadius.circular(12),
                 ),
               ),
-              child: const Text('Réessayer'),
+              child: const Text('Try Again'),
             ),
             const SizedBox(height: 10),
             TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Retour'),
+              child: const Text('Back'),
             ),
           ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final size = MediaQuery.of(context).size;
-
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Quiz Live',
-            style: TextStyle(fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        automaticallyImplyLeading: !_quizActive,
-        actions: [
-          if (!widget.isHost && !_quizActive)
-            IconButton(
-              icon: const Icon(Icons.exit_to_app),
-              tooltip: 'Quitter',
-              onPressed: () => Navigator.pop(context),
-            ),
-        ],
-        elevation: 4,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
-        ),
-      ),
-      body: SafeArea(
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: [
-                theme.primaryColor.withOpacity(0.05),
-                theme.scaffoldBackgroundColor,
-              ],
-            ),
-          ),
-          child: _isLoading
-              ? _buildLoadingView()
-              : _errorMessage != null
-                  ? _buildErrorView()
-                  : _quizFinished
-                      ? _buildQuizFinishedView()
-                      : (_quizActive
-                          ? _buildActiveQuizView()
-                          : _buildLobbyView()),
         ),
       ),
     );
@@ -967,7 +814,7 @@ class _QuizScreenState extends State<QuizScreen> {
           const CircularProgressIndicator(),
           const SizedBox(height: 20),
           Text(
-            'Chargement du quiz...',
+            'Loading quiz...',
             style: TextStyle(
               fontSize: 18,
               color: Theme.of(context).primaryColor,
@@ -981,7 +828,6 @@ class _QuizScreenState extends State<QuizScreen> {
   Widget _buildActiveQuizView() {
     return Column(
       children: [
-        // Header avec timer et score
         Container(
           padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           decoration: BoxDecoration(
@@ -998,7 +844,6 @@ class _QuizScreenState extends State<QuizScreen> {
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              // Timer
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1019,7 +864,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                     const SizedBox(width: 6),
                     Text(
-                      '$_remainingTime',
+                      '$_remainingTime/${_questions[_currentQuestionIndex]['time'] ?? 15}s',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
                         color: _remainingTime < 5
@@ -1031,8 +876,6 @@ class _QuizScreenState extends State<QuizScreen> {
                   ],
                 ),
               ),
-
-              // Question counter
               Text(
                 'Question ${_currentQuestionIndex + 1}/${_questions.length}',
                 style: const TextStyle(
@@ -1040,8 +883,6 @@ class _QuizScreenState extends State<QuizScreen> {
                   fontSize: 16,
                 ),
               ),
-
-              // Score
               if (_currentPlayerId != null &&
                   _playerData.containsKey(_currentPlayerId))
                 Container(
@@ -1073,10 +914,7 @@ class _QuizScreenState extends State<QuizScreen> {
             ],
           ),
         ),
-
         const SizedBox(height: 20),
-
-        // Carte de question
         Expanded(
           child: SingleChildScrollView(
             child: Column(
@@ -1101,8 +939,6 @@ class _QuizScreenState extends State<QuizScreen> {
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: 30),
-
-                        // Options de réponse
                         ...List.generate(
                           _questions[_currentQuestionIndex]['options'].length,
                           (index) {
@@ -1146,12 +982,11 @@ class _QuizScreenState extends State<QuizScreen> {
                             );
                           },
                         ),
-
                         if (_isAnswered)
                           Padding(
                             padding: const EdgeInsets.only(top: 20),
                             child: Text(
-                              'Réponse enregistrée. En attente de la prochaine question...',
+                              'Answer submitted. Waiting for next question...',
                               style: TextStyle(
                                 fontStyle: FontStyle.italic,
                                 color: Colors.grey[600],
@@ -1163,10 +998,7 @@ class _QuizScreenState extends State<QuizScreen> {
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
-                // Classement partiel
                 if (_topPlayers.isNotEmpty)
                   Card(
                     elevation: 2,
@@ -1180,7 +1012,7 @@ class _QuizScreenState extends State<QuizScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Classement actuel',
+                            'Current Ranking',
                             style: TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -1240,9 +1072,58 @@ class _QuizScreenState extends State<QuizScreen> {
             ),
           ),
         ),
-
         if (widget.isHost) _buildHostControls(),
       ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Quiz Live',
+            style: TextStyle(fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        automaticallyImplyLeading: !_quizActive,
+        actions: [
+          if (!widget.isHost && !_quizActive)
+            IconButton(
+              icon: const Icon(Icons.exit_to_app),
+              tooltip: 'Leave',
+              onPressed: () => Navigator.pop(context),
+            ),
+        ],
+        elevation: 4,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(bottom: Radius.circular(16)),
+        ),
+      ),
+      body: SafeArea(
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                theme.primaryColor.withOpacity(0.05),
+                theme.scaffoldBackgroundColor,
+              ],
+            ),
+          ),
+          child: _isLoading
+              ? _buildLoadingView()
+              : _errorMessage != null
+                  ? _buildErrorView()
+                  : _quizFinished
+                      ? _buildQuizFinishedView()
+                      : (_quizActive
+                          ? _buildActiveQuizView()
+                          : _buildLobbyView()),
+        ),
+      ),
     );
   }
 }
