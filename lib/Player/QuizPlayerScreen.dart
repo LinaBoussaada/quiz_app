@@ -2,38 +2,55 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'dart:async';
 
-class QuizAdminDashboard extends StatefulWidget {
+class PlayerScreen extends StatefulWidget {
   final String quizId;
+  final String playerId;
+  final String playerName;
 
-  const QuizAdminDashboard({Key? key, required this.quizId}) : super(key: key);
+  const PlayerScreen({
+    Key? key,
+    required this.quizId,
+    required this.playerId,
+    required this.playerName,
+  }) : super(key: key);
 
   @override
-  _QuizAdminDashboardState createState() => _QuizAdminDashboardState();
+  _PlayerScreenState createState() => _PlayerScreenState();
 }
 
-class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
+class _PlayerScreenState extends State<PlayerScreen> {
   late final DatabaseReference _quizRef;
-  Map<String, dynamic> _players = {};
+  late final DatabaseReference _playerRef;
   bool _quizActive = false;
   int _currentQuestionIndex = 0;
   List<dynamic> _questions = [];
-  Timer? _questionTimer;
   int _remainingTime = 30;
   bool _timeExpired = false;
   bool _quizFinished = false;
-  DateTime? _questionStartTime;
+  int? _selectedAnswerIndex;
+  bool _answerSubmitted = false;
+  int _playerScore = 0;
 
   @override
   void initState() {
-    _quizRef = FirebaseDatabase.instance.ref('quizzes/${widget.quizId}');
     super.initState();
+    _quizRef = FirebaseDatabase.instance.ref('quizzes/${widget.quizId}');
+    _playerRef = _quizRef.child('players/${widget.playerId}');
+
+    // Initialize player data
+    _playerRef.set({
+      'name': widget.playerName,
+      'score': 0,
+      'isCorrect': false,
+      'lastAnswer': null,
+    });
+
     _loadQuizData();
     _setupRealTimeUpdates();
   }
 
   @override
   void dispose() {
-    _questionTimer?.cancel();
     super.dispose();
   }
 
@@ -47,10 +64,6 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
             (data['currentQuestionIndex'] as num?)?.toInt() ?? 0;
         _quizActive = data['isActive'] ?? false;
         _remainingTime = _getCurrentQuestionTime();
-
-        if (_quizActive) {
-          _startQuestionTimer();
-        }
       });
     }
   }
@@ -69,7 +82,6 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
         final newIndex = (data['currentQuestionIndex'] as num?)?.toInt() ?? 0;
 
         setState(() {
-          _players = Map<String, dynamic>.from(data['players'] ?? {});
           _quizActive = data['isActive'] ?? false;
           _questions = List<dynamic>.from(data['questions'] ?? []);
 
@@ -77,9 +89,8 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
             _currentQuestionIndex = newIndex;
             _remainingTime = _getCurrentQuestionTime();
             _timeExpired = false;
-            if (_quizActive) {
-              _startQuestionTimer();
-            }
+            _selectedAnswerIndex = null;
+            _answerSubmitted = false;
           }
 
           _quizFinished = _quizActive &&
@@ -88,85 +99,50 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
         });
       }
     });
+
+    // Listen to player's own data updates
+    _playerRef.onValue.listen((event) {
+      if (event.snapshot.exists) {
+        final data = event.snapshot.value as Map<dynamic, dynamic>;
+        setState(() {
+          _playerScore = (data['score'] as num?)?.toInt() ?? 0;
+        });
+      }
+    });
   }
 
-  void _startQuestionTimer() {
-    _questionTimer?.cancel();
-    _timeExpired = false;
-    _questionStartTime = DateTime.now();
+  Future<void> _submitAnswer() async {
+    if (_selectedAnswerIndex == null || _answerSubmitted) return;
+
+    final currentQuestion = _questions[_currentQuestionIndex];
+    final isCorrect = _selectedAnswerIndex == currentQuestion['correctAnswer'];
+
+    await _playerRef.update({
+      'isCorrect': isCorrect,
+      'lastAnswer': _selectedAnswerIndex,
+      'score': isCorrect ? _playerScore + 1 : _playerScore,
+    });
 
     setState(() {
-      _remainingTime = _getCurrentQuestionTime();
-    });
-
-    _questionTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      final now = DateTime.now();
-      final elapsedSeconds = now.difference(_questionStartTime!).inSeconds;
-      final totalTime = _getCurrentQuestionTime();
-
-      setState(() {
-        _remainingTime = totalTime - elapsedSeconds;
-
-        if (_remainingTime <= 0) {
-          _remainingTime = 0;
-          _timeExpired = true;
-          timer.cancel();
-          _nextQuestion();
-        }
-      });
-    });
-  }
-
-  Future<void> _startQuiz() async {
-    await _quizRef.update({
-      'isActive': true,
-      'currentQuestionIndex': 0,
-      'players': {},
-    });
-    _startQuestionTimer();
-  }
-
-  Future<void> _nextQuestion() async {
-    _questionTimer?.cancel();
-
-    if (_currentQuestionIndex < _questions.length - 1) {
-      await _quizRef.update({
-        'currentQuestionIndex': _currentQuestionIndex + 1,
-      });
-    } else {
-      await _endQuiz();
-    }
-  }
-
-  Future<void> _endQuiz() async {
-    _questionTimer?.cancel();
-    await _quizRef.update({
-      'isActive': false,
-    });
-    setState(() {
-      _quizFinished = true;
+      _answerSubmitted = true;
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      floatingActionButton: _quizFinished
-          ? null
-          : FloatingActionButton(
-              onPressed: _quizActive ? null : _startQuiz,
-              child: const Icon(Icons.play_arrow),
-              tooltip: 'Démarrer le quiz',
-            ),
       appBar: AppBar(
-        title: const Text("Tableau de contrôle"),
+        title: Text('Quiz - ${widget.playerName}'),
         actions: [
-          if (_quizActive && !_quizFinished)
-            IconButton(
-              icon: const Icon(Icons.stop),
-              onPressed: _endQuiz,
-              tooltip: 'Terminer le quiz',
+          Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Center(
+              child: Text(
+                'Score: $_playerScore',
+                style: const TextStyle(fontSize: 18),
+              ),
             ),
+          ),
         ],
       ),
       body: Column(
@@ -184,6 +160,11 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
                         fontWeight: FontWeight.bold,
                         color: Colors.green,
                       ),
+                    )
+                  else if (!_quizActive)
+                    const Text(
+                      'En attente du début du quiz...',
+                      style: TextStyle(fontSize: 20),
                     )
                   else ...[
                     Text(
@@ -207,71 +188,85 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
                         style: const TextStyle(fontSize: 18),
                       ),
                     const SizedBox(height: 20),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        if (!_quizActive && !_quizFinished)
-                          ElevatedButton(
-                            onPressed: _startQuiz,
-                            child: const Text('Démarrer le Quiz'),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.green,
-                            ),
-                          ),
-                        if (_quizActive && !_timeExpired && !_quizFinished)
-                          ElevatedButton(
-                            onPressed: _nextQuestion,
-                            child: const Text('Passer à la suivante'),
-                          ),
-                      ],
-                    ),
                   ],
                 ],
               ),
             ),
           ),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Text(
-                    'Participants',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                ),
-                Expanded(
-                  child: _players.isEmpty
-                      ? const Center(child: Text("Aucun participant"))
-                      : ListView.builder(
-                          itemCount: _players.length,
-                          itemBuilder: (context, index) {
-                            final playerId = _players.keys.elementAt(index);
-                            final player = _players[playerId];
-                            return ListTile(
-                              leading: CircleAvatar(
-                                child: Text((index + 1).toString()),
-                              ),
-                              title: Text(player['name'] ?? 'Anonyme'),
-                              subtitle: Text('Score: ${player['score'] ?? 0}'),
-                              trailing: _quizActive && _questions.isNotEmpty
-                                  ? Icon(
-                                      player['isCorrect'] == true
-                                          ? Icons.check_circle
-                                          : Icons.circle_outlined,
-                                      color: player['isCorrect'] == true
-                                          ? Colors.green
-                                          : Colors.grey,
-                                    )
+          if (_quizActive &&
+              !_quizFinished &&
+              _currentQuestionIndex < _questions.length)
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount:
+                          _questions[_currentQuestionIndex]['answers'].length,
+                      itemBuilder: (context, index) {
+                        final answer =
+                            _questions[_currentQuestionIndex]['answers'][index];
+                        return Card(
+                          color: _answerSubmitted
+                              ? index ==
+                                      _questions[_currentQuestionIndex]
+                                          ['correctAnswer']
+                                  ? Colors.green.withOpacity(0.3)
+                                  : _selectedAnswerIndex == index
+                                      ? Colors.red.withOpacity(0.3)
+                                      : null
+                              : _selectedAnswerIndex == index
+                                  ? Colors.blue.withOpacity(0.3)
                                   : null,
-                            );
-                          },
-                        ),
-                ),
-              ],
+                          child: ListTile(
+                            title: Text(answer),
+                            onTap: _answerSubmitted
+                                ? null
+                                : () {
+                                    setState(() {
+                                      _selectedAnswerIndex = index;
+                                    });
+                                  },
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ElevatedButton(
+                      onPressed:
+                          _answerSubmitted || _selectedAnswerIndex == null
+                              ? null
+                              : _submitAnswer,
+                      child: Text(
+                          _answerSubmitted ? 'Réponse envoyée' : 'Valider'),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
+          if (_quizFinished)
+            Expanded(
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Text(
+                      'Votre score final:',
+                      style: TextStyle(fontSize: 24),
+                    ),
+                    Text(
+                      '$_playerScore / ${_questions.length}',
+                      style: const TextStyle(
+                        fontSize: 48,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
         ],
       ),
     );

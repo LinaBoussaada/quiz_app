@@ -24,7 +24,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
   bool _quizFinished = false;
   DateTime? _questionStartTime;
   String _quizTitle = "";
-
+  String _lastQuizSession = ""; // Track the current quiz session
   @override
   void initState() {
     _quizRef = FirebaseDatabase.instance.ref('quizzes/${widget.quizId}');
@@ -45,7 +45,8 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       final data = snapshot.value as Map<dynamic, dynamic>;
       setState(() {
         _questions = List<dynamic>.from(data['questions'] ?? []);
-        _currentQuestionIndex = (data['currentQuestionIndex'] as num?)?.toInt() ?? 0;
+        _currentQuestionIndex =
+            (data['currentQuestionIndex'] as num?)?.toInt() ?? 0;
         _quizActive = data['isActive'] ?? false;
         _remainingTime = _getCurrentQuestionTime();
         _quizTitle = data['title'] ?? "Quiz sans titre";
@@ -120,6 +121,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
     });
   }
 
+/*
   Future<void> _startQuiz() async {
     await _quizRef.update({
       'isActive': true,
@@ -127,6 +129,57 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       'players': {}, // Réinitialise la liste des joueurs au démarrage du quiz
     });
     _startQuestionTimer();
+  }*/
+
+  Future<void> _startQuiz() async {
+    // Generate a new session ID based on timestamp
+    String newSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    await _quizRef.update({
+      'isActive': true,
+      'currentQuestionIndex': 0,
+      'quizEnded': false,
+      'sessionId': newSessionId,
+    });
+
+    setState(() {
+      _lastQuizSession = newSessionId;
+      _players = {}; // Clear local players list when starting a new quiz
+      _quizFinished = false;
+      _timeExpired = false;
+    });
+
+    _startQuestionTimer();
+  }
+
+  void _restartQuiz() async {
+    // Generate a new session ID for the restarted quiz
+    String newSessionId = DateTime.now().millisecondsSinceEpoch.toString();
+
+    await _quizRef.update({
+      'isActive': false,
+      'currentQuestionIndex': 0,
+      'quizEnded': false,
+      'sessionId': newSessionId,
+      // We don't clear players in Firebase, we'll filter by sessionId
+    });
+
+    setState(() {
+      _lastQuizSession = newSessionId;
+      _players = {}; // Clear the local players list
+      _quizFinished = false;
+      _timeExpired = false;
+      _currentQuestionIndex = 0;
+    });
+
+    // Show a message that the quiz is ready to start
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Quiz ready to start. Players can now join.'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   Future<void> _nextQuestion() async {
@@ -143,13 +196,13 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
 
   Future<void> _endQuiz() async {
     _questionTimer?.cancel();
-    
+
     // Ne pas sauvegarder l'historique
-    
+
     await _quizRef.update({
       'isActive': false,
     });
-    
+
     setState(() {
       _quizFinished = true;
     });
@@ -172,7 +225,8 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       floatingActionButton: _quizFinished
           ? null
           : FloatingActionButton(
-              onPressed: _quizActive ? null : _startQuiz,
+              onPressed: _restartQuiz,
+              //onPressed: _quizActive ? null : _startQuiz,
               child: const Icon(Icons.play_arrow),
               tooltip: 'Démarrer le quiz',
               backgroundColor: _quizActive ? Colors.grey : Colors.green,
@@ -240,7 +294,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
               ),
             ),
           ),
-          
+
           // Section État du Quiz
           Card(
             margin: EdgeInsets.symmetric(horizontal: 16),
@@ -284,7 +338,8 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
                       children: [
                         if (!_quizActive && !_quizFinished)
                           ElevatedButton(
-                            onPressed: _startQuiz,
+                            onPressed: _startQuiz, // on va tester ça
+                            //onPressed: _restartQuiz,
                             child: const Text('Démarrer le Quiz'),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.green,
@@ -302,7 +357,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
               ),
             ),
           ),
-          
+
           // Section Participants (uniquement les participants actuels)
           Expanded(
             child: Column(
@@ -321,26 +376,28 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
                 ),
                 Expanded(
                   child: _players.isEmpty
-                    ? Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.people_outline, size: 48, color: Colors.grey.shade400),
-                            SizedBox(height: 16),
-                            Text(
-                              "Aucun participant",
-                              style: TextStyle(color: Colors.grey.shade600),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              "Partagez le code du quiz pour que les joueurs puissent rejoindre",
-                              textAlign: TextAlign.center,
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                            ),
-                          ],
-                        ),
-                      )
-                    : _buildParticipantsList(_players),
+                      ? Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.people_outline,
+                                  size: 48, color: Colors.grey.shade400),
+                              SizedBox(height: 16),
+                              Text(
+                                "Aucun participant",
+                                style: TextStyle(color: Colors.grey.shade600),
+                              ),
+                              SizedBox(height: 8),
+                              Text(
+                                "Partagez le code du quiz pour que les joueurs puissent rejoindre",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                    fontSize: 12, color: Colors.grey.shade500),
+                              ),
+                            ],
+                          ),
+                        )
+                      : _buildParticipantsList(_players),
                 ),
               ],
             ),
@@ -349,7 +406,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
       ),
     );
   }
-  
+
   Widget _buildParticipantsList(Map<String, dynamic> participants) {
     return ListView.builder(
       padding: EdgeInsets.all(8),
@@ -358,7 +415,7 @@ class _QuizAdminDashboardState extends State<QuizAdminDashboard> {
         final entry = participants.entries.elementAt(index);
         final playerId = entry.key;
         final player = entry.value;
-        
+
         return Card(
           margin: EdgeInsets.symmetric(vertical: 4, horizontal: 8),
           child: ListTile(

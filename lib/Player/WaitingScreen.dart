@@ -5,8 +5,17 @@ import 'dart:async';
 
 class WaitingScreen extends StatefulWidget {
   final String quizId;
+  final String playerName;
+  final String playerAvatar;
+  final String playerId;
 
-  const WaitingScreen({Key? key, required this.quizId}) : super(key: key);
+  const WaitingScreen({
+    Key? key,
+    required this.quizId,
+    required this.playerName,
+    required this.playerAvatar,
+    required this.playerId,
+  }) : super(key: key);
 
   @override
   _WaitingScreenState createState() => _WaitingScreenState();
@@ -14,25 +23,36 @@ class WaitingScreen extends StatefulWidget {
 
 class _WaitingScreenState extends State<WaitingScreen> {
   late DatabaseReference _quizRef;
-  late StreamSubscription _quizStatusSubscription;
+  late StreamSubscription _quizSubscription;
 
   @override
   void initState() {
     super.initState();
-    _quizRef = FirebaseDatabase.instance
-        .ref('quizzes/${widget.quizId}'); 
+    _quizRef = FirebaseDatabase.instance.ref('quizzes/${widget.quizId}');
     _setupQuizListener();
   }
 
   void _setupQuizListener() {
-    _quizStatusSubscription =
-        _quizRef.child('isActive').onValue.listen((event) {
-      final isActive = event.snapshot.value as bool? ?? false;
-      if (isActive && mounted) {
+    _quizSubscription = _quizRef.onValue.listen((event) {
+      final data = event.snapshot.value as Map<dynamic, dynamic>?;
+      if (data == null || !mounted) return;
+
+      final isActive = data['isActive'] as bool? ?? false;
+      final currentQuestionIndex = data['currentQuestionIndex'] as int? ?? 0;
+      final questions = data['questions'] as List? ?? [];
+
+      // Si le quiz est actif OU si on a déjà commencé les questions
+      if ((isActive || currentQuestionIndex > 0) && mounted) {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (_) => QuizScreen(quizId: widget.quizId),
+            builder: (_) => QuizScreen(
+              quizId: widget.quizId,
+              isHost: false,
+              playerName: widget.playerName,
+              playerAvatar: widget.playerAvatar,
+              playerId: widget.playerId,
+            ),
           ),
         );
       }
@@ -41,7 +61,7 @@ class _WaitingScreenState extends State<WaitingScreen> {
 
   @override
   void dispose() {
-    _quizStatusSubscription.cancel();
+    _quizSubscription.cancel();
     super.dispose();
   }
 
@@ -63,6 +83,17 @@ class _WaitingScreenState extends State<WaitingScreen> {
             Text(
               'Quiz ID: ${widget.quizId}',
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            CircleAvatar(
+              radius: 40,
+              backgroundImage: AssetImage(
+                  'assets/images/avatars/${widget.playerAvatar}.jpeg'),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Hello, ${widget.playerName}!',
+              style: const TextStyle(fontSize: 18),
             ),
           ],
         ),

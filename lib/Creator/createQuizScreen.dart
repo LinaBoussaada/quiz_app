@@ -25,6 +25,11 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   List<Map<String, dynamic>> _quizList = [];
   bool _isLoading = true;
 
+  // Variables for quiz control
+  bool _quizFinished = false;
+  bool _timeExpired = false;
+  int _currentQuestionIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -243,6 +248,42 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
     }
   }
 
+  //hedhy zedtha tw
+  void _restartQuiz(String quizId) async {
+    // Get reference to the quiz
+    final quizRef = databaseRef.child('quizzes').child(quizId);
+
+    await quizRef.update({
+      'isActive': false,
+      'currentQuestionIndex': 0,
+      'quizEnded': false, // Set to false when restarting
+    });
+
+    setState(() {
+      _quizFinished = false;
+      _timeExpired = false;
+      _currentQuestionIndex = 0;
+    });
+
+    // Show a message that quiz is ready to be started
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Quiz ready to start. Players can now join.'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    // Navigate to quiz admin dashboard
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizAdminDashboard(quizId: quizId),
+      ),
+    );
+  }
+
+//she doesnt  use the startquiz
   void _startQuiz(String quizId) {
     Navigator.push(
       context,
@@ -317,8 +358,10 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                                     icon: Icon(Icons.play_arrow,
                                         color: Colors.green),
                                     tooltip: "Lancer ce quiz",
-                                    onPressed: () =>
-                                        _startQuiz(_quizList[index]['quizId']),
+                                    //onPressed: () =>
+                                    //  _startQuiz(_quizList[index]['quizId']),
+                                    onPressed: () => _restartQuiz(
+                                        _quizList[index]['quizId']),
                                   ),
                                 );
                               },
