@@ -25,6 +25,11 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   List<Map<String, dynamic>> _quizList = [];
   bool _isLoading = true;
 
+  // Variables for quiz control
+  bool _quizFinished = false;
+  bool _timeExpired = false;
+  int _currentQuestionIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -148,7 +153,77 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
   }
 
   final databaseRef = FirebaseDatabase.instance.ref();
+/*
+  void _saveQuiz() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => LoginScreen()),
+      );
+      return;
+    }
 
+    if (_titleController.text.isEmpty || _questions.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.warning, color: Colors.white),
+              SizedBox(width: 10),
+              Text("Ajoutez un titre et au moins une question."),
+            ],
+          ),
+          backgroundColor: Colors.orange.shade700,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          margin: EdgeInsets.all(10),
+        ),
+      );
+      return;
+    }
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => Center(child: CircularProgressIndicator()),
+    );
+
+    String quizId = _generateQuizId();
+    await databaseRef.child('quizzes').child(quizId).set({
+      'quizId': quizId,
+      'title': _titleController.text,
+      'questions': _questions,
+      'creatorId': user.uid,
+      'players': {}, // Liste vide initialement
+      'currentSession': {
+        // Nouvelle structure pour gérer la session
+        'isActive': false,
+        'currentQuestionIndex': 0,
+        'quizEnded': false,
+        'players': {}, // Liste des joueurs pour cette session
+      },
+      'createdAt': DateTime.now().millisecondsSinceEpoch,
+      'previousSessions': [], // Historique des sessions précédentes
+    });
+
+    Navigator.pop(context);
+    _loadQuizzes();
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+          builder: (context) => QuizCreatedScreen(quizId: quizId)),
+    );
+
+    _titleController.clear();
+    setState(() {
+      _questions.clear();
+    });
+  }
+*/
+// bsh nbdlha bsh ynjm yfskh liste w score l qdom
   void _saveQuiz() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -242,7 +317,94 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       });
     }
   }
+/*
+  void _restartQuiz(String quizId) async {
+    final quizRef = databaseRef.child('quizzes').child(quizId);
 
+    // Sauvegarder la session précédente si nécessaire
+    final snapshot = await quizRef.once();
+    if (snapshot.snapshot.value != null) {
+      final data = snapshot.snapshot.value as Map;
+      final currentSession = data['currentSession'] ?? {};
+
+      if (currentSession['players'] != null &&
+          (currentSession['players'] as Map).isNotEmpty) {
+        // Ajouter la session précédente à l'historique
+        await quizRef.child('previousSessions').push().set({
+          'date': DateTime.now().millisecondsSinceEpoch,
+          'players': currentSession['players'],
+        });
+      }
+    }
+
+    // Réinitialiser pour une nouvelle session
+    await quizRef.child('currentSession').update({
+      'isActive': false,
+      'currentQuestionIndex': 0,
+      'quizEnded': false,
+      'players': {}, // Nouvelle liste vide pour les joueurs
+    });
+
+    setState(() {
+      _quizFinished = false;
+      _timeExpired = false;
+      _currentQuestionIndex = 0;
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Nouvelle session prête. Les joueurs peuvent rejoindre.'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizAdminDashboard(quizId: quizId),
+      ),
+    );
+  }*/
+
+  //hedhy zedtha tw bsh nbdlha bli fougha bsh yfskh liste players l qdima
+  void _restartQuiz(String quizId) async {
+    // Get reference to the quiz
+    final quizRef = databaseRef.child('quizzes').child(quizId);
+
+    await quizRef.update({
+      'isActive': false,
+      'currentQuestionIndex': 0,
+      'quizEnded': false, // Set to false when restarting
+      //bsh nfaskh liste leqdima aamlt hedhy
+      'players': {},
+    });
+
+    setState(() {
+      _quizFinished = false;
+      _timeExpired = false;
+      _currentQuestionIndex = 0;
+    });
+
+    // Show a message that quiz is ready to be started
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Quiz ready to start. Players can now join.'),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+
+    // Navigate to quiz admin dashboard
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => QuizAdminDashboard(quizId: quizId),
+      ),
+    );
+  }
+
+//she doesnt  use the startquiz
   void _startQuiz(String quizId) {
     Navigator.push(
       context,
@@ -317,8 +479,10 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                                     icon: Icon(Icons.play_arrow,
                                         color: Colors.green),
                                     tooltip: "Lancer ce quiz",
-                                    onPressed: () =>
-                                        _startQuiz(_quizList[index]['quizId']),
+                                    //onPressed: () =>
+                                    //  _startQuiz(_quizList[index]['quizId']),
+                                    onPressed: () => _restartQuiz(
+                                        _quizList[index]['quizId']),
                                   ),
                                 );
                               },
