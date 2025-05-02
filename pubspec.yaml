@@ -18,11 +18,11 @@ dependencies:
   cloud_firestore: ^5.6.6
   provider: ^6.1.4
   
-  image_picker: ^1.0.4 # Optional for saving QR code
-  qr_flutter: ^4.1.0  # Updated to a stable version
-  share_plus: ^7.0.0  # For sharing QR codes
-  flutter_svg: ^2.0.7 # Optionnel pour exporter en SVG
-  mobile_scanner: ^3.4.0  # Add this instead
+  image_picker: ^1.0.4
+  qr_flutter: ^4.1.0  
+  share_plus: ^7.0.0  
+  flutter_svg: ^2.0.7 
+  mobile_scanner: ^3.4.0  
   cupertino_icons: ^1.0.8
 
 dev_dependencies:

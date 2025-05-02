@@ -241,7 +241,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
                         ),
                         contentPadding:
                             EdgeInsets.symmetric(vertical: 16, horizontal: 12),
-                        hintText: "john@company.com",
+                        hintText: "lina@isi.com",
                         hintStyle: TextStyle(color: Colors.grey.shade400),
                       ),
                     ),

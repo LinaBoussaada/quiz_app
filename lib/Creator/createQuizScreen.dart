@@ -178,7 +178,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
               Text("Ajoutez un titre et au moins une question."),
             ],
           ),
-          backgroundColor: Color(0xFFFFA726), // Orange plus clair
+          backgroundColor: Color.fromARGB(255, 235, 181, 217), 
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -193,7 +193,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
       barrierDismissible: false,
       builder: (context) => Center(
         child: CircularProgressIndicator(
-          color: Color(0xFF5B9BD5), // Bleu Mentimeter
+          color: Color(0xFF5B9BD5),
         )
       ),
     );
@@ -332,7 +332,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
           Expanded(
             child: _isLoading
                 ? Center(child: CircularProgressIndicator(
-                    color: Color(0xFF5B9BD5), // Bleu Mentimeter
+                    color: Color(0xFF5B9BD5), 
                   ))
                 : _quizList.isEmpty
                     ? Center(
@@ -372,7 +372,7 @@ class _CreateQuizScreenState extends State<CreateQuizScreen> {
                               ),
                               leading: Icon(
                                 Icons.quiz_outlined,
-                                color: Color(0xFF5B9BD5), // Bleu Mentimeter
+                                color: Color(0xFF5B9BD5),
                               ),
                               subtitle: Text(
                                 "Questions: ${_quizList[index]['questions']?.length ?? 0}",

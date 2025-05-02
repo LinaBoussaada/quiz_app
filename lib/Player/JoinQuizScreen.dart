@@ -195,10 +195,7 @@ class _JoinQuizScreenState extends State<JoinQuizScreen> {
           MaterialPageRoute(
             builder: (context) => WaitingScreen(
               quizId: quizId,
-              //*builder: (context) => QuizScreen(
-
-              //quizId: quizId,
-              //isHost: false,
+             
               playerName: playerName,
               playerAvatar: _selectedAvatar,
               playerId: userId,
