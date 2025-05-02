@@ -2,7 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'package:firebase_database/firebase_database.dart';
-import 'package:quiz_app/QuizLobbyScreen.dart';
+import 'package:quiz_app/Player/QuizLobbyScreen.dart';
 /*
 class QRScannerScreen extends StatefulWidget {
   @override
@@ -110,7 +110,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
-import 'package:quiz_app/QuizLobbyScreen.dart';
+import 'package:quiz_app/Player/QuizLobbyScreen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class QRScannerScreen extends StatefulWidget {

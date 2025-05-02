@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:quiz_app/Creator/QuizAdminDashboard.dart';
 import 'package:quiz_app/Shared/loginScreen.dart';
 import 'dart:math';
-import 'package:quiz_app/Player/quiz_created_screen.dart';
+import 'package:quiz_app/Creator/quiz_created_screen.dart';
 
 class CreateQuizScreen extends StatefulWidget {
   @override

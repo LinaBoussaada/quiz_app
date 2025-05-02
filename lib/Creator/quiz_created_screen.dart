@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../Creator/QuizAdminDashboard.dart';
+import 'QuizAdminDashboard.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import 'QuizScreen.dart'; // Make sure to import your QuizScreen
+import '../Player/QuizScreen.dart'; // Make sure to import your QuizScreen
 /*
 class QuizCreatedScreen extends StatefulWidget {
   final String quizId;
@@ -86,7 +86,7 @@ class _QuizCreatedScreenState extends State<QuizCreatedScreen> {
 import 'package:flutter/material.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:qr_flutter/qr_flutter.dart';
-import '../Creator/QuizAdminDashboard.dart';
+import 'QuizAdminDashboard.dart';
 
 class QuizCreatedScreen extends StatefulWidget {
   final String quizId;
@@ -102,8 +102,7 @@ class _QuizCreatedScreenState extends State<QuizCreatedScreen> {
   bool isLoading = true;
   String? quizTitle;
 
-  @override
-  void initState() {
+  @override  void initState() {
     super.initState();
     _loadQuizData();
   }
